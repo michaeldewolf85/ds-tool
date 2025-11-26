@@ -1,5 +1,4 @@
 set colorcolumn=80
-set expandtab
 set number
 set shiftwidth=2
 set softtabstop=2
