@@ -4,9 +4,12 @@
 
 .section  .rodata
 
-hello:
-  .ascii  "Hello Donkey!\n"
-  .equ    hello_len, . - hello
+logo:
+	.ascii	" ___  ___   ___           _\n"
+	.ascii	"| . \\/ __> |_ _|___  ___ | |\n"
+	.ascii	"| | |\\__ \\  | |/ . \\/ . \\| |\n"
+	.ascii	"|___/<___/  |_|\\___/\\___/|_|\n"
+  .equ    logo_len, . - logo
 
 .section  .text
 
@@ -14,8 +17,8 @@ hello:
 _start:
   mov   $SYS_WRITE, %rax
   mov   $STDOUT, %rdi
-  mov   $hello, %rsi
-  mov   $hello_len, %rdx
+  mov   $logo, %rsi
+  mov   $logo_len, %rdx
   syscall
 
   mov   $SYS_EXIT, %rax
