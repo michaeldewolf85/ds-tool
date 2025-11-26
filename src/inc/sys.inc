@@ -1,11 +1,13 @@
-# Linux system constants
+# inc/sys.inc - Linux system constants
 
 ###### System call codes ######
-.equ  SYS_EXIT, 0x3c
-.equ  SYS_WRITE, 0x01
+.equ	SYS_EXIT, 0x3c
+.equ	SYS_WRITE, 0x01
+.equ	SYS_READ, 0x00
 
 ###### File descriptors #######
-.equ  STDOUT, 1
+.equ	STDIN, 0
+.equ	STDOUT, 1
 
 ######## Exit statuses ########
-.equ  EXIT_SUCCESS, 0
+.equ	EXIT_SUCCESS, 0
