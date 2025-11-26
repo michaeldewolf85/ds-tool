@@ -1,9 +1,9 @@
 bin/ds-tool: obj/main.o
 	mkdir -p bin
 	ld obj/main.o -o bin/ds-tool
-obj/main.o:
+obj/main.o: src/main.s
 	mkdir -p obj
-	as -I src/inc -o obj/main.o src/main.s
+	as --gstabs -I src/inc -o obj/main.o src/main.s
 run: bin/ds-tool
 	./bin/ds-tool
 clean:
