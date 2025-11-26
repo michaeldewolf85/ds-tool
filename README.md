@@ -46,7 +46,7 @@ doas apk update && doas apk upgrade
 ```
 4. Add some basic packages:
 ```
-doas apk add git vim
+doas apk add gcc git vim
 ```
 5. Enable project local `.vimrc`:
 ```
