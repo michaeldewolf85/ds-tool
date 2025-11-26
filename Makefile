@@ -3,6 +3,8 @@ bin/ds-tool: obj/main.o
 	ld obj/main.o -o bin/ds-tool
 obj/main.o:
 	mkdir -p obj
-	as src/main.s -o obj/main.o
+	as -I src/inc -o obj/main.o src/main.s
+run: bin/ds-tool
+	./bin/ds-tool
 clean:
 	rm -rf bin obj

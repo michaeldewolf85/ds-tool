@@ -1,16 +1,6 @@
-# main.s - Application entrypoint
+# main.s - Application entry point
 
-###### Constants ######
-
-##### System call codes #####
-.equ  SYS_EXIT, 0x3c
-.equ  SYS_WRITE, 0x01
-
-##### File descriptors #####
-.equ  STDOUT, 1
-
-##### Exit status codes #####
-.equ  EXIT_SUCCESS, 69
+.include	"sys.inc"
 
 .section  .rodata
 
