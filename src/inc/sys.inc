@@ -8,5 +8,4 @@
 .equ  STDOUT, 1
 
 ######## Exit statuses ########
-.equ  EXIT_SUCCESS, 69
-
+.equ  EXIT_SUCCESS, 0
