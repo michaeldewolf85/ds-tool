@@ -1,10 +1,10 @@
-bin/ds-tool: obj/main.o
+bin/ds: build/main.o
 	mkdir -p bin
-	ld obj/main.o -o bin/ds-tool
-obj/main.o: src/main.s
-	mkdir -p obj
-	as --gstabs -I src/inc -o obj/main.o src/main.s
-run: bin/ds-tool
-	./bin/ds-tool
+	ld build/main.o -o bin/ds
+build/main.o: src/main.s
+	mkdir -p build
+	as --gstabs -I src/inc -o build/main.o src/main.s
+run: bin/ds
+	./bin/ds
 clean:
-	rm -rf bin obj
+	rm -rf bin build
