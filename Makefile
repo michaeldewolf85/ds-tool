@@ -1,12 +1,13 @@
+sources := $(shell find src -name *.s -type f)
+objects := $(sources:src/%.s=build/%.o)
+
 bin/ds: build/ds.o
 	mkdir -p bin
 	ld build/ds.o -o bin/ds
-build/ds.o: src/main.s
+build/ds.o: $(sources)
 	mkdir -p build
-	as --gstabs -I src/inc -o build/ds.o src/main.s src/proc/read.s src/proc/evaluate.s src/lib/util.s
+	as -g -I src/inc -o build/ds.o $(sources)
 run: bin/ds
 	./bin/ds
-print: $(wildcard *.s)
-	ls -la  $?
 clean:
 	rm -rf bin build
