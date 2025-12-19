@@ -18,12 +18,13 @@ strcmp:
 
 compare:
 	movb	(%rdi, %rcx), %al	# Move first char of s1 into %al, if the result is not zero
-	subb	(%rsi, %rcx), %al	# than they aren't equal and %rax has the return
+	movb	(%rsi, %rcx), %dl	# Move first char of s2 into %dl
+	subb	(%rsi, %rcx), %al	# If they aren't equal, %rax has the return
 	jnz	done
 
 	cmpb	$NULL, (%rdi, %rcx)	# Check for end of s1
 	je	done
-	cmpb	$NULL, (%rsi, %rcx)	# Check for end of s2
+	cmpb	$NULL, %dl		# Check for end of s2
 	je	done
 
 	inc	%rcx
