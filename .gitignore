@@ -4,3 +4,6 @@ bld
 
 # VM stuff
 *.img
+
+# Vim
+*.swp
