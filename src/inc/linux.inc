@@ -1,4 +1,4 @@
-# inc/sys.inc - Linux system constants
+# inc/linux.inc - Linux system constants
 
 ###### System call codes ######
 .equ	SYS_EXIT, 0x3c

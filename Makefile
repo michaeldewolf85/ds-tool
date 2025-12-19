@@ -1,10 +1,12 @@
-bin/ds-tool: obj/main.o
+bin/ds: build/ds.o
 	mkdir -p bin
-	ld obj/main.o -o bin/ds-tool
-obj/main.o: src/main.s
-	mkdir -p obj
-	as --gstabs -I src/inc -o obj/main.o src/main.s
-run: bin/ds-tool
-	./bin/ds-tool
+	ld build/ds.o -o bin/ds
+build/ds.o: src/main.s
+	mkdir -p build
+	as --gstabs -I src/inc -o build/ds.o src/main.s src/proc/read.s src/proc/evaluate.s src/lib/util.s
+run: bin/ds
+	./bin/ds
+print: $(wildcard *.s)
+	ls -la  $?
 clean:
-	rm -rf bin obj
+	rm -rf bin build

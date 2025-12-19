@@ -1,9 +1,6 @@
 # Build artifacts
 bin
-bld
-
-# VM stuff
-*.img
+build
 
 # Vim
 *.swp
