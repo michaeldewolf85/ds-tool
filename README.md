@@ -76,10 +76,10 @@ doas apk add gcc gdb git make vim
 4. Enable project local `.vimrc`:
 ```
 echo "set exrc" >> ~/.vimrc
-
-#### Commands needed for every boot
 ```
-You'll need to manually mount the file share each time you boot (if so desired):
+
+#### Useful commands
+You'll need to manually mount the file share each time you boot (optional):
 ```
 mkdir -p ~/share
 doas mount -t 9p share /home/dev/share
@@ -90,8 +90,14 @@ hostname during setup):
 ```
 ssh -p 2222 dev@localhost
 ```
+
 In case the terminal window is doing weird stuff (like getting cut-off) you can recalibrate the 
 dimensions with:
 ```
 resize
+```
+
+Poweroff the VM:
+```
+doas poweroff
 ```
