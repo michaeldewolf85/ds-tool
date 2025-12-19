@@ -1,9 +1,10 @@
 # main.s - Application entry point
 
-.include	"settings.inc"
-.include	"sys.inc"
+.include "linux.inc"
 
-.section  .rodata
+.globl _start
+
+.section .rodata
 
 logo:
 	.ascii	" ___  ___   ___           _\n"
@@ -16,14 +17,10 @@ prompt:
 	.ascii	"ds⟩ "
 	.equ	prompt_len, . - prompt
 
-.section  .text
+.section .text
 
-.globl  _start
 _start:
-	# Allocate some space on the stack for input buffer (TODO remove)
-	sub	$INPUT_LENGTH, %rsp
-
-	# Write logo
+	# Print logo
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi
 	mov	$logo, %rsi
@@ -31,19 +28,17 @@ _start:
 	syscall
 
 repl:
-	# Write prompt
+	# Print prompt
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi
 	mov	$prompt, %rsi
 	mov	$prompt_len, %rdx
 	syscall
 
-	# Wait for user input
-	mov		$SYS_READ, %rax
-	mov		$STDIN, %rdi
-	mov		%rsp, %rsi
-	mov		$INPUT_LENGTH, %rdx
-	syscall
+	mov	$STDIN, %rdi
+	call	read
+
+	mov	%rax, %rdi
+	call	evaluate
 
 	jmp	repl
-
