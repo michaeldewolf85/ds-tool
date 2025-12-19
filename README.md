@@ -25,16 +25,18 @@ qemu-system-x86_64 \
   -netdev user,id=net0 \
   -nographic
 ```
-Afterwards, a basic installation was performed (e.g. disk install, setting up a user) using 
-`setup-alpine`. For the most part, the default answers for the prompts should be fine. Add a user 
-named `dev` when prompted. For disk setup choose `sys` and use the `sda` block device. Overall, 
-this takes approximately 30 seconds. 
+Log in as the `root` user (no password) and perform a basic installation using `setup-alpine`. For 
+the most part, the default answers for the prompts should be fine. Add a user named `dev` and 
+choose the `sda` disk  and `sys` install when prompted.
 
-Once Alpine add the dev user to the `wheel` group so that we can use that user to complete the 
-setup. Power off the VM when complete
+Once installation is complete add the `dev` user to the `wheel` group as we will use that user to 
+complete the setup:
 ```
 echo 'permit :wheel' > /etc/doas.d/doas.conf
 adduser dev wheel
+```
+Power off the VM when complete:
+```
 poweroff
 ```
 
@@ -57,20 +59,6 @@ qemu-system-x86_64 \
 ```
 From now on we will log in as the `dev` user and finish the setup using `doas` when necessary.
 
-You'll need to manually mount the file share each time you boot (if so desired):
-```
-mkdir -p ~/ds-tool
-doas mount -t 9p share /home/mike/share
-```
-
-To SSH into the VM from another tab use the following (assumes `localhost` was specified as the 
-hostname during setup):
-```
-ssh -p 2222 dev@localhost
-```
-In case the terminal window is doing weird stuff (like getting cut-off) simply run `resize` at the 
-shell.
-
 #### One-time setup
 The steps below should only need to be executed once:
 1. Add colors to the shell:
@@ -88,4 +76,22 @@ doas apk add gcc gdb git make vim
 4. Enable project local `.vimrc`:
 ```
 echo "set exrc" >> ~/.vimrc
+
+#### Commands needed for every boot
+```
+You'll need to manually mount the file share each time you boot (if so desired):
+```
+mkdir -p ~/share
+doas mount -t 9p share /home/dev/share
+```
+
+To SSH into the VM from another tab use the following (assumes `localhost` was specified as the 
+hostname during setup):
+```
+ssh -p 2222 dev@localhost
+```
+In case the terminal window is doing weird stuff (like getting cut-off) you can recalibrate the 
+dimensions with:
+```
+resize
 ```
