@@ -1,5 +1,6 @@
-# Final executables
+# Build artifacts
 bin
+bld
 
-# Intermediate build artifacts
-obj
+# VM stuff
+*.img
