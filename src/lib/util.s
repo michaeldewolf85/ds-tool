@@ -22,17 +22,17 @@ compare:
 	movb	(%rdi, %rcx), %al	# Move first char of s1 into %al, if the result is not zero
 	movb	(%rsi, %rcx), %dl	# Move first char of s2 into %dl
 	subb	(%rsi, %rcx), %al	# If they aren't equal, %rax has the return
-	jnz	done
+	jnz	end
 
 	cmpb	$NULL, (%rdi, %rcx)	# Check for end of s1
-	je	done
+	je	end
 	cmpb	$NULL, %dl		# Check for end of s2
-	je	done
+	je	end
 
 	inc	%rcx
 	jmp	compare
 
-done:
+end:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
