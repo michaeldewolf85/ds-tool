@@ -1,12 +1,13 @@
+VPATH := $(shell find src -type d)
 sources := $(shell find src -name *.s -type f)
 objects := $(sources:src/%.s=build/%.o)
 
-bin/ds: build/ds.o
+bin/ds: $(objects)
 	mkdir -p bin
-	ld build/ds.o -o bin/ds
-build/ds.o: $(sources)
-	mkdir -p build
-	as -g -I src/inc -o build/ds.o $(sources)
+	ld $(objects) -o bin/ds
+build/%.o: %.s
+	mkdir -p $(VPATH:src/%=build/%)
+	as -g -I src/inc -o $@ $<
 run: bin/ds
 	./bin/ds
 clean:
