@@ -1,5 +1,7 @@
 # lib/util.s - Common utilities
 
+.include "common.inc"
+
 .globl strcmp
 
 .section .text
