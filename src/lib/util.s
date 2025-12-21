@@ -1,8 +1,8 @@
 # lib/util.s - Common utilities
 
-.include "common.inc"
+.include	"common.inc"
 
-.globl strcmp
+.globl	strcmp
 
 .section .text
 
@@ -10,7 +10,7 @@
 # @param	%rdi	String one
 # @param	%rsi	String two
 # @return	%rax	Zero if equal, a negative if string one is less than string 2 or vice versa
-.type strcmp, @function
+.type	strcmp, @function
 strcmp:
 	push	%rbp
 	mov	%rsp, %rbp

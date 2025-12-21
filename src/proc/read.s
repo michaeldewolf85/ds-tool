@@ -1,26 +1,26 @@
 # proc/read.s - Reads user input
 
-.include "common.inc"
-.include "linux.inc"
-.include "settings.inc"
-.include "structs.inc"
+.include	"common.inc"
+.include	"linux.inc"
+.include	"settings.inc"
+.include	"structs.inc"
 
-.globl read
+.globl	read
 
 .section .bss
 
-.align 8
+.align	8
 buffer:
-	.skip INPUT_BUFFER_LEN
+	.skip	INPUT_BUFFER_LEN
 input:
-	.skip INPUT_SIZE
+	.skip	INPUT_SIZE
 
 .section .text
 
 # Reads input from the specified file descriptor and parses it. Returns the address of the input
 # @param	%rdi	A file descriptor	
 # @return	%rax	The address of the parsed input struct
-.type read, @function
+.type	read, @function
 read:
 	push	%rbp
 	mov	%rsp, %rbp
