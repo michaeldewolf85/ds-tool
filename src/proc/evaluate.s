@@ -7,12 +7,6 @@
 
 .section .rodata
 
-## Command strings
-exit:
-	.ascii	"exit\0"
-ping:
-	.ascii	"ping\0"
-
 commands:
 	.quad	exit
 	.quad	ping
@@ -23,37 +17,7 @@ handlers:
 	.quad	ping_handler
 	.quad	error_handler
 
-pong:
-	.ascii	"PONG\n"
-	.equ	pong_len, . - pong
-error:
-	.ascii	"Unrecognized command\n"
-	.equ	error_len, . - error
-
 .section .text
-
-exit_handler:
-	mov	$SYS_EXIT, %rax
-	mov	$EXIT_SUCCESS, %rdi
-	syscall
-
-ping_handler:
-	mov	$SYS_WRITE, %rax
-	mov	$STDOUT, %rdi
-	mov	$pong, %rsi
-	mov	$pong_len, %rdx
-	syscall
-
-	ret
-
-error_handler:
-	mov	$SYS_WRITE, %rax
-	mov	$STDOUT, %rdi
-	mov	$error, %rsi
-	mov	$error_len, %rdx
-	syscall
-
-	ret
 
 # Evaluate user input
 # @param 	%rdi	Address of the input struct
