@@ -1,8 +1,8 @@
 # main.s - Application entry point
 
-.include "linux.inc"
+.include	"linux.inc"
 
-.globl _start
+.globl	_start
 
 .section .rodata
 

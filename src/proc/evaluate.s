@@ -1,9 +1,9 @@
 # proc/evaluate.s - Evaluate parsed input and delegate to the appropriate handler
 
-.include "linux.inc"
-.include "structs.inc"
+.include	"linux.inc"
+.include	"structs.inc"
 
-.globl evaluate
+.globl	evaluate
 
 .section .rodata
 
@@ -22,7 +22,7 @@ handlers:
 # Evaluate user input
 # @param 	%rdi	Address of the input struct
 # @return	%rax	Address of a (null terminated) output message
-.type evaluate, @function
+.type	evaluate, @function
 evaluate:
 	push	%rbp
 	mov	%rsp, %rbp
