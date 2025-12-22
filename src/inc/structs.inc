@@ -1,7 +1,7 @@
 # proc/read.inc - Resuable data structures
 
 ## Parsed user input
-.struct	0
+	.struct	0
 Input.argc:
 	.struct Input.argc + 1<<3
 Input.argv:
