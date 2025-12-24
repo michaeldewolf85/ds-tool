@@ -98,12 +98,18 @@ unlink:
 # The current block as more than enough space in which case we will shrink it and a chunk at the 
 # tail end to the caller
 resize:
-	# Block is greater than needed so we resize it and return the tail end
+	# Calculate/retrieve updated block values. We will return the head end to the user
 	mov	Header.size(%rax), %rsi		# Move header size into %rsi for subtraction
 	sub	%rbx, %rsi			# Calculate the new size
-	mov	%rsi, Header.size(%rax)		# Store the new size for the free block
-	add	%rsi, %rax			# Move %rax pointer to the memory we will return
-	mov	%rbx, Header.size(%rax)		# Set the size on the returned block
+	mov	Header.next(%rax), %rcx		# Retrieve the next pointer of the block
+
+	mov	%rax, %r8			# Leave the return value for user block in %rax 
+	add	%rbx, %r8			# Increment %r8 to the new location
+	mov	%rcx, Header.next(%r8)		# Set the next
+	mov	%rsi, Header.size(%r8)		# Set the size
+	mov	%r8, Header.next(%rdx)		# Link to the free list
+
+	mov	%rbx, Header.size(%rax)		# Set the size on the user returned block
 
 6:
 	mov	%rdx, freep			# Store where we left off searching in freep
@@ -282,8 +288,8 @@ realloc:
 
 	# Next we will merge the two blocks. First we update "next" ...
 	mov	Header.next(%r9), %rcx	# We need to preserve the "next" pointer of "next"
-	sub	%r13, Header.size(%r9)	# Subtract the differential from the "next" blocks size
 	mov	Header.size(%r9), %rdx	# Preserve the size 
+	sub	%r13, %rdx		# Subtract the differential from the "next" blocks size
 
 	add	%r13, %r9		# Increment/decrement "next" according to the differential
 	mov	%rcx, Header.next(%r9)	# Reapply the "next" pointer to "next
