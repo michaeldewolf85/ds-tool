@@ -2,11 +2,27 @@
 
 .include	"common.inc"
 
-.globl	strcmp
+.globl	print, strcmp, strlen
 
 .section .text
 
-# Compare two (null terminated) strings for equality
+# @function	print
+# @description	Print a string to standard output. The system call to write is buffered and does 
+#		not happen immediately. Callers who need immediate output may need to ALSO call 
+#		print_buffer_flush
+# @param	%rdi	Address of the string to print. It is assumed to be NULL terminated
+# @return	%rax	The number of characters added to the buffer
+.type	print, @function
+print:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	strcmp
+# @description	Compare two (null terminated) strings for equality
 # @param	%rdi	String one
 # @param	%rsi	String two
 # @return	%rax	Zero if equal, a negative if string one is less than string 2 or vice versa
@@ -33,6 +49,19 @@ compare:
 	jmp	compare
 
 end:
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	strlen
+# @description	Get the length of a (NULL terminated) string
+# @param	%rdi	Address of the string
+# @return	%rax	The length of the string
+.type	strlen, @function
+strlen:
+	push	%rbp
+	mov	%rsp, %rbp
+
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
