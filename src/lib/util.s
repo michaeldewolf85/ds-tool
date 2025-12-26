@@ -3,21 +3,16 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	print, strcmp, strlen
+.globl	print, print_buffer_flush, strcmp
 
-.equ	PRINT_BUFFER_MAX, 3
-# PrintBuffer
-	.struct	0
-PrintBuffer.length:
-	.struct	PrintBuffer.length + 1<<3
-PrintBuffer.data:
-	.struct	PrintBuffer.data + 1<<3 * PRINT_BUFFER_MAX
-	.equ	PRINT_BUFFER_SIZE, .
+.equ	PRINT_BUFFER_SIZE, 1<<10
 
 .section .bss
 
 print_buffer:
-	.zero	PRINT_BUFFER_SIZE
+	.skip	PRINT_BUFFER_SIZE
+print_buffer_len:
+	.zero	1<<3
 
 .section .text
 
@@ -32,32 +27,47 @@ print:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	xor	%rcx, %rcx	# Zero out count register to use as an index
-	mov	print_buffer + PrintBuffer.length, %rdx
+	xor	%rcx, %rcx		# Zero out count register to use as an index
+	mov	print_buffer_len, %rdx	# Keep track of the print buffer length in a register
+
 1:
 	movb	(%rdi, %rcx), %al
-	movb	%al, print_buffer + PrintBuffer.data(, %rdx)
+	movb	%al, print_buffer(, %rdx)
 	inc	%rdx
 
-	cmp	$PRINT_BUFFER_MAX, %rdx
-	jge	2f
+	cmp	$PRINT_BUFFER_SIZE, %rdx
+	jge	3f
 
 	inc	%rcx
 	cmp	$NULL, %al
 	jne	1b
-	
+
+	mov	%rdx, print_buffer_len	# Store where the print buffer ended out
+
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
-2:
+
+3:
+	mov	%rdx, print_buffer_len	# Update the print_buffer length
+	call	print_buffer_flush
+	
+	mov	print_buffer_len, %rdx
+	jmp	1b
+
+# @function	print_buffer_flush
+# @description	Flushes the print buffer to STDOUT
+.type	print_buffer_flush, @function
+print_buffer_flush:
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi
-	mov	$print_buffer + PrintBuffer.data, %rsi
-	mov	print_buffer + PrintBuffer.length, %rdx
+	mov	$print_buffer, %rsi
+	mov	print_buffer_len, %rdx
 	syscall
-	mov	$0, print_buffer + PrintBuffer.length
-	mov	$0, %rdx
-	jmp	1b
+
+	mov	$0, print_buffer_len
+	ret
+	
 
 # @function	strcmp
 # @description	Compare two (null terminated) strings for equality
@@ -87,19 +97,6 @@ compare:
 	jmp	compare
 
 end:
-	mov	%rbp, %rsp
-	pop	%rbp
-	ret
-
-# @function	strlen
-# @description	Get the length of a (NULL terminated) string
-# @param	%rdi	Address of the string
-# @return	%rax	The length of the string
-.type	strlen, @function
-strlen:
-	push	%rbp
-	mov	%rsp, %rbp
-
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
