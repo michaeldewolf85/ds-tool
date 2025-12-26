@@ -1,8 +1,23 @@
 # lib/util.s - Common utilities
 
 .include	"common.inc"
+.include	"linux.inc"
 
 .globl	print, strcmp, strlen
+
+.equ	PRINT_BUFFER_MAX, 3
+# PrintBuffer
+	.struct	0
+PrintBuffer.length:
+	.struct	PrintBuffer.length + 1<<3
+PrintBuffer.data:
+	.struct	PrintBuffer.data + 1<<3 * PRINT_BUFFER_MAX
+	.equ	PRINT_BUFFER_SIZE, .
+
+.section .bss
+
+print_buffer:
+	.zero	PRINT_BUFFER_SIZE
 
 .section .text
 
@@ -17,9 +32,32 @@ print:
 	push	%rbp
 	mov	%rsp, %rbp
 
+	xor	%rcx, %rcx	# Zero out count register to use as an index
+	mov	print_buffer + PrintBuffer.length, %rdx
+1:
+	movb	(%rdi, %rcx), %al
+	movb	%al, print_buffer + PrintBuffer.data(, %rdx)
+	inc	%rdx
+
+	cmp	$PRINT_BUFFER_MAX, %rdx
+	jge	2f
+
+	inc	%rcx
+	cmp	$NULL, %al
+	jne	1b
+	
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+2:
+	mov	$SYS_WRITE, %rax
+	mov	$STDOUT, %rdi
+	mov	$print_buffer + PrintBuffer.data, %rsi
+	mov	print_buffer + PrintBuffer.length, %rdx
+	syscall
+	mov	$0, print_buffer + PrintBuffer.length
+	mov	$0, %rdx
+	jmp	1b
 
 # @function	strcmp
 # @description	Compare two (null terminated) strings for equality
