@@ -16,7 +16,7 @@ LogBuffer.data:
 
 .section .bss
 
-.align	16
+.align	8
 log_buffer:
 	.zero	LOG_BUFFER_SIZE
 
