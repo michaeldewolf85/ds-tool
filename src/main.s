@@ -17,20 +17,9 @@ prompt:
 	.ascii	"ds⟩ "
 	.equ	prompt_len, . - prompt
 
-sample:
-	.ascii	"Foo bar bax bax banana onions terrible lettuce boondoggle\0"
-
 .section .text
 
 _start:
-	mov	$1000, %r12
-lp:
-	mov	$sample, %rdi
-	call	print
-	dec	%r12
-	cmp	$0, %r12
-	jne	lp
-
 	# Print logo
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi
@@ -51,5 +40,5 @@ repl:
 
 	mov	%rax, %rdi
 	call	evaluate
-
+	call	print
 	jmp	repl

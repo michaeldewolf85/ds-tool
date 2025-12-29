@@ -1,7 +1,5 @@
 # proc/handlers/ping.s - Handler for "ping"
 
-.include	"linux.inc"
-
 .globl	ping, ping_handler
 
 .section .rodata
@@ -11,23 +9,13 @@ ping:
 	.ascii	"ping\0"
 
 pong:
-	.ascii	"pong\n"
-	.equ	pong_len, . - pong
+	.ascii	"pong\n\0"
 
 .section .text
 
-# Prints the message "pong"
+# Logs the message "pong"
 .type	ping_handler, @function
 ping_handler:
-	push	%rbp
-	mov	%rsp, %rbp
-
-	mov	$SYS_WRITE, %rax
-	mov	$STDOUT, %rdi
-	mov	$pong, %rsi
-	mov	$pong_len, %rdx
-	syscall
-
-	mov	%rbp, %rsp
-	pop	%rbp
+	mov	$pong, %rdi
+	call	log
 	ret
