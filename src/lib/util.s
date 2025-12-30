@@ -3,9 +3,39 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	strcmp
+.globl	atoi, strcmp
 
 .section .text
+
+# @function	atoi
+# @description	Convert a string to an integer
+# @param	%rdi	Pointer to null terminated string
+# @return	%rax	The converted value or negative 1 on error
+.type	atoi, @function
+atoi:
+	xor	%rax, %rax		# Result
+	xor	%rcx, %rcx		# Current digit
+1:
+	movzbl	(%rdi), %ecx
+	cmpb	$NULL, %cl		# When we get a zero char we are done
+	je	2f
+
+	sub	$'0', %cl
+	jb	3f			# If there was borrow the character was < '0' (invalid)
+	cmp	$9, %cl
+	jg	3f			# Number was greater than 9 (invalid)
+
+	imul	$10, %rax		# Multiply result by 10 for each digit
+	add	%rcx, %rax
+
+	inc	%rdi
+	jmp	1b
+
+2:
+	ret
+3:
+	mov	$-1, %rax
+	ret
 
 # @function	strcmp
 # @description	Compare two (null terminated) strings for equality

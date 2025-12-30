@@ -42,10 +42,10 @@ break:
 .type	alloc, @function
 alloc:
 	push	%rbp
+	push	%rbx
 	mov	%rsp, %rbp
 
 	# Store requested bytes somewhere less volatile
-	push	%rbx
 	mov	%rdi, %rbx
 
 	# Check for a bad request (e.g. request less than 1 byte) and return NULL if so
@@ -116,9 +116,8 @@ resize:
 	add	$HEADER_SIZE, %rax		# Increment the returned pointer past the header
 						# i.e. point it to the "useable" memory
 7:
-	pop	%rbx				# Preserve %rbx
-
 	mov	%rbp, %rsp
+	pop	%rbx
 	pop	%rbp
 	ret
 
