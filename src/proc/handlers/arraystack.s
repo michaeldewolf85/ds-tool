@@ -367,9 +367,13 @@ ArrayStack_resize:
 	mov	%rax, %rdi			# Destination pointer
 	rep	movsq
 
+	mov	ArrayStack.data(%rbx), %rdi	# Preserve old pointer to data
+
 	mov	%rax, ArrayStack.data(%rbx)	# Update pointer to data
 	mov	%r13d, ArrayStack.size(%rbx)
 
+	# Free old pointer in %rdi
+	call	free
 1:
 	pop	%r13
 	pop	%r12
