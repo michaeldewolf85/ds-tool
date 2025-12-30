@@ -1,8 +1,9 @@
 # proc/handlers/array-stack.s - ArrayStack handler
 
 .include	"common.inc"
+.include	"structs.inc"
 
-.globl	dickens
+.globl	arraystack, arraystack_handler
 
 # ArrayStack struct
 	.struct	0
@@ -18,6 +19,33 @@ ArrayStack.data:
 
 .section .rodata
 
+# Arraystack command string
+.type	arraystack, @object
+arraystack:
+	.ascii	"arraystack\0"
+
+get:
+	.ascii	"get\0"
+set:
+	.ascii	"set\0"
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+
+commands:
+	.quad	get
+	.quad	set
+	.quad	add
+	.quad	remove
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	ArrayStack_get
+	.quad	ArrayStack_set
+	.quad	ArrayStack_add
+	.quad	ArrayStack_remove
+
 start_delim:
 	.ascii	"[ \0"
 
@@ -25,29 +53,16 @@ mid_delim:
 	.ascii	", \0"
 
 end_delim:
-	.ascii	" ]\0"
+	.ascii	" ]\n\0"
 
-# TODO: REMOVE!!
-item1:
-	.ascii	"artichokes\0"
-item2:
-	.ascii	"broccoli\0"
-item3:
-	.ascii	"green peppers\0"
-item4:
-	.ascii	"hamburger\0"
-item5:
-	.ascii	"mushrooms\0"
-item6:
-	.ascii	"olives\0"
-item7:
-	.ascii	"onions\0"
-item8:
-	.ascii	"pepperoni\0"
-item9:
-	.ascii	"pineapple\0"
-item10:
-	.ascii	"sausage\0"
+newline:
+	.ascii	"\n\0"
+
+malformed:
+	.ascii	"Malformed command\n\0"
+
+null:
+	.ascii	"NULL\0"
 
 .section .bss
 
@@ -57,86 +72,77 @@ instance:
 
 .section .text
 
-.type	dickens, @function
-dickens:
+# @function	arraystack_handler
+# @description	Handler for the arraystack set of commands
+# @param	%rdi	Pointer to the Input struct
+# @return	void
+.type	arraystack_handler, @function
+arraystack_handler:
+	push	%rbx
+	push	%r12
+	mov	%rdi, %rbx
+
 	mov	instance, %rdi
 	cmp	$NULL, %rdi
 	je	new
 
 1:
-	mov	$instance, %rdi
-	mov	$item1, %rdx
-	mov	$0, %rsi
-	call	ArrayStack_add
+	mov	Input.argv + 8(%rbx), %rdi	# Second argument is the operation
+	xor	%r12, %r12			# Index of found operation
 
-	mov	$instance, %rdi
-	mov	$item2, %rdx
-	mov	$1, %rsi
-	call	ArrayStack_add
+	cmp	$3, Input.argc(%rbx)		# Must be at least 3 arguments to be valid
+	jl	error
 
-	mov	$instance, %rdi
-	mov	$item3, %rdx
-	mov	$2, %rsi
-	call	ArrayStack_add
+check:
+	mov	commands(, %r12, 8), %rsi
+	cmp	$0, %rsi			# Check for the sentinel, if we match here the 
+	je	error				# command was not found
 
-	mov	$instance, %rdi
-	mov	$item4, %rdx
-	mov	$3, %rsi
-	call	ArrayStack_add
+	call	strcmp
+	cmp	$0, %rax
+	je	match
 
-	mov	$instance, %rdi
-	mov	$item5, %rdx
-	mov	$4, %rsi
-	call	ArrayStack_add
+	inc	%r12
+	jmp	check
 
-	mov	$instance, %rdi
-	mov	$item6, %rdx
-	mov	$5, %rsi
-	call	ArrayStack_add
+match:
+	mov	Input.argv + 16(%rbx), %rdi	# Third argument is always an index
+	call	atoi
+	cmp	$0, %rax
+	jl	error
 
-	mov	$instance, %rdi
-	mov	$item7, %rdx
-	mov	$6, %rsi
-	call	ArrayStack_add
+	mov	%rax, %rsi
+	mov	Input.argv + 24(%rbx), %rdx	# Third argument may be a string pointer
 
-	mov	$instance, %rdi
-	mov	$item8, %rdx
-	mov	$7, %rsi
-	call	ArrayStack_add
+	mov	instance, %rdi			# Ensure instance is in place
+	call	*handlers(, %r12, 8)		# Call the handler
 
-	mov	$instance, %rdi
-	mov	$item9, %rdx
-	mov	$8, %rsi
-	call	ArrayStack_add
+	mov	$null, %r12
+	mov	%rax, %rdi
+	cmp	$0, %rax
+	cmove	%r12, %rdi
+	call	log
 
-	mov	$instance, %rdi
-	mov	$0, %rsi
-	call	ArrayStack_remove
+	mov	$newline, %rdi
+	call	log
 
-	mov	$instance, %rdi
-	mov	$0, %rsi
-	call	ArrayStack_remove
-
-	mov	$instance, %rdi
-	mov	$0, %rsi
-	call	ArrayStack_remove
-
-	mov	$instance, %rdi
-	mov	$0, %rsi
-	call	ArrayStack_remove
-
-	mov	$instance, %rdi
-	mov	$0, %rsi
-	call	ArrayStack_remove
-
-	mov	$instance, %rdi
+	mov	instance, %rdi
 	call	ArrayStack_log
-	call	print
+
+3:
+	pop	%r12
+	pop	%rbx
 	ret
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp 3b
 
 # No instance yet, so create one
 new:
 	call	ArrayStack_ctor
+	mov	%rax, instance
 	jmp	1b
 
 # @function	constructor
@@ -146,20 +152,25 @@ new:
 
 .type	ArrayStack_ctor, @function
 ArrayStack_ctor:
+	push	%rbx
+
 	# Allocation for the arraystack's metadata
 	mov	$ARRAYSTACK_SIZE, %rdi
 	call	alloc
 	# TODO: Error handling
-	mov	%rax, instance
+	mov	%rax, %rbx
 
 	# Allocation for the arraystack's data
 	mov	$ARRAYSTACK_START_SIZE, %rdi
 	call	alloc
 	# TODO: Error handling
 
-	mov	%rax, instance + ArrayStack.data
-	movl	$ARRAYSTACK_START_SIZE, instance + ArrayStack.size
-	movl	$0, instance + ArrayStack.length
+	mov	%rax, ArrayStack.data(%rbx)
+	movl	$ARRAYSTACK_START_SIZE, ArrayStack.size(%rbx)
+	movl	$0, ArrayStack.length(%rbx)
+	mov	%rbx, %rax
+
+	pop	%rbx
 	ret
 
 # @function	ArrayStack_get
@@ -382,6 +393,9 @@ ArrayStack_log:
 
 	mov	ArrayStack.length(%rbx), %r12d
 	mov	ArrayStack.data(%rbx), %r13
+
+	cmp	$0, %r12d
+	je	2f
 
 	xor	%r14, %r14			# Zero out addressing index
 # Loop all the items

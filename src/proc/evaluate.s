@@ -10,11 +10,13 @@
 commands:
 	.quad	exit
 	.quad	ping
+	.quad	arraystack
 	.quad	0	# Sentinel
 
 handlers:
 	.quad	exit_handler
 	.quad	ping_handler
+	.quad	arraystack_handler
 	.quad	error_handler
 
 .section .text
@@ -25,13 +27,17 @@ handlers:
 .type	evaluate, @function
 evaluate:
 	push	%rbp
+	push	%rbx				# Pointer to input struct
+	push	%r12				# Index into commands array
 	mov	%rsp, %rbp
 
+	mov	%rdi, %rbx
+
 	mov	Input.argv(%rdi), %rdi		# Make %rdi point to the first argv
-	xor	%rbx, %rbx			# Zero out an index register
+	xor	%r12, %r12			# Zero out an index register
 
 check:
-	mov	commands(, %rbx, 8), %rsi
+	mov	commands(, %r12, 8), %rsi
 	cmp	$0, %rsi			# Check for the sentinel, if we match here the 
 	je	match				# command was not found
 
@@ -39,12 +45,15 @@ check:
 	cmp	$0, %rax
 	je	match
 
-	inc	%rbx
+	inc	%r12
 	jmp	check
 
 match:
-	call	*handlers(, %rbx, 8)		# Call the handler
+	mov	%rbx, %rdi
+	call	*handlers(, %r12, 8)		# Call the handler
 
 	mov	%rbp, %rsp
+	pop	%r12
+	pop	%rbx
 	pop	%rbp
 	ret
