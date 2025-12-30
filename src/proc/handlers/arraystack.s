@@ -259,6 +259,7 @@ ArrayStack_add:
 	mov	%r14, (%rax, %r13, 1<<3)	# Finally, insert new element
 	mov	%r14, %rax
 
+4:
 	pop	%r14
 	pop	%r13
 	pop	%r12
@@ -268,7 +269,7 @@ ArrayStack_add:
 # Unhappy path, invalid index
 2:
 	xor	%rax, %rax			# Sets %rax to NULL
-	ret
+	jmp	4b
 
 # Resize needed
 3: 
@@ -323,8 +324,8 @@ ArrayStack_remove:
 
 # Unhappy path, invalid index
 2:
-	xor	%rax, %rax			# Sets %rax to NULL
-	ret
+	xor	%r13, %r13			# Sets %rax to NULL
+	jmp	1b
 
 # Resize needed
 3: 
