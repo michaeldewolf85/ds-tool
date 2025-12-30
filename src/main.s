@@ -20,6 +20,8 @@ prompt:
 .section .text
 
 _start:
+	call	dickens
+
 	# Print logo
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi
