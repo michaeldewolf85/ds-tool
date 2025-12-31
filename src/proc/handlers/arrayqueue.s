@@ -1,5 +1,9 @@
 # proc/handlers/arrayqueue.s - ArrayQueue handler
 
+.include	"structs.inc"
+
+.globl	arrayqueue, arrayqueue_handler
+
 ## Macros
 
 ### ArrayQueue
@@ -20,12 +24,50 @@ ArrayQueue.size:
 
 .equ	ARRAYQUEUE_START_SIZE, 1
 
-.globl	arrayqueue_handler
-
 .section .rodata
 
-item:
-	.ascii "Foobarbaz\0"
+# ArrayQueue command string
+.type	arrayqueue, @object
+arrayqueue:
+	.ascii	"arrayqueue\0"
+
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+
+commands:
+	.quad	add
+	.quad	remove
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	ArrayQueue_add
+	.quad	ArrayQueue_remove
+
+start_delim:
+	.ascii	"[ \0"
+
+mid_delim:
+	.ascii	", \0"
+
+end_delim:
+	.ascii	" ]\n\0"
+
+newline:
+	.ascii	"\n\0"
+
+malformed:
+	.ascii	"Malformed command\n\0"
+
+null:
+	.ascii	"NULL\0"
+
+.section .bss
+
+# One and only ArrayQueue instance
+instance:
+	.zero	1<<3
 
 .section .text
 
@@ -33,76 +75,79 @@ item:
 # @description	Handler for the arrayqueue set of commands
 # @param	%rdi	A pointer to an "Input" struct (argc, argv)
 # @return	void
-.equ	ARRAYQUEUE, -8
+.equ	INPUT, -8
+.equ	COUNTER, -16
 .type	arrayqueue_handler, @function
 arrayqueue_handler:
 	push	%rbp
 	mov	%rsp, %rbp
-	sub	$8, %rsp
 
-	call	ArrayQueue_ctor
-	mov	%rax, ARRAYQUEUE(%rbp)
+	sub	$16, %rsp
+	mov	%rdi, INPUT(%rbp)
+	movq	$0, COUNTER(%rbp)
 
-	# Length 1
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	# Check for initialization
+	cmpq	$0, instance
+	je	new
 
-	# Resize 1 => 2
-	# Length 2
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+1:
+	mov	INPUT(%rbp), %rax		# Input
+	cmpq	$1, Input.argc(%rax)		# If only 1 argument, print the ArrayQueue
+	je	3f
 
-	# Resize 2 => 4
-	# Length 3
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	mov	Input.argv + 8(%rax), %rdi	# Current command in %rdi
+check:
+	mov	COUNTER(%rbp), %rcx
+	mov	commands(, %rcx, 1<<3), %rsi	# Current command being examined
+	cmp	$0, %rsi			# Check for NULL sentinel which indicates no ...
+	je	error				# matching command was found
 
-	# Length 4
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	call	strcmp
+	cmp	$0, %rax
+	je	match
 
-	# Resize 4 => 8
-	# Length 5
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	incq	COUNTER(%rbp)
+	jmp	check
 
-	# Length 4
-	mov	ARRAYQUEUE(%rbp), %rdi
-	call	ArrayQueue_remove
+match:
+	mov	instance, %rdi
 
-	# Length 3
-	mov	ARRAYQUEUE(%rbp), %rdi
-	call	ArrayQueue_remove
+	mov	INPUT(%rbp), %rax		# Only "add" command takes an argument but argv ...
+	mov	Input.argv + 16(%rax), %rsi	# passes zeroes in all the other slots
 
-	# Resize 8 => 4
-	# Length 2
-	mov	ARRAYQUEUE(%rbp), %rdi
-	call	ArrayQueue_remove
+	mov	COUNTER(%rbp), %rcx
+	call	*handlers(, %rcx, 1<<3)
 
-	# Length 3
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	mov	$null, %rcx
+	cmp	$0, %rax
+	cmove	%rcx, %rax
 
-	# Length 4
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	mov	%rax, %rdi
+	call	log
 
-	# Resize 4 => 8
-	# Length 5
-	mov	ARRAYQUEUE(%rbp), %rdi
-	mov	$item, %rsi
-	call	ArrayQueue_add
+	mov	$newline, %rdi
+	call	log
 
+3:
+	mov	instance, %rdi
+	call	ArrayQueue_log
+
+2:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+
+# Not initialized
+new:
+	call	ArrayQueue_ctor
+	mov	%rax, instance
+	jmp	1b
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp	2b
+
 
 # @function	ArrayQueue_ctor
 # @description	Constructor for an ArrayQueue
@@ -138,7 +183,7 @@ ArrayQueue_ctor:
 # @description	Adds an item to the ArrayQueue
 # @param	%rdi	Pointer to the ArrayQueue
 # @param	%rsi	Pointer to the item to add
-# @return	%rax	The length of the queue
+# @return	%rax	Pointer to the added item
 .equ	ARRAYQUEUE, -8
 .equ	NEW_ITEM, -16
 ArrayQueue_add:
@@ -149,6 +194,10 @@ ArrayQueue_add:
 	sub	$16, %rsp
 	mov	%rdi, ARRAYQUEUE(%rbp)
 	mov	%rsi, NEW_ITEM(%rbp)
+
+	# Check for an empty item
+	cmp	$0, %rsi
+	je	3f
 
 	# Check if a resize might be needed
 	mov	ArrayQueue.length(%rdi), %eax
@@ -174,6 +223,9 @@ ArrayQueue_add:
 	incl	ArrayQueue.length(%rcx)
 	mov	ArrayQueue.length(%rcx), %eax
 
+3:
+	pop	%rax
+
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -190,6 +242,11 @@ ArrayQueue_add:
 ArrayQueue_remove:
 	push	%rbp
 	mov	%rsp, %rbp
+
+	# Check for zero length
+	mov	ArrayQueue.length(%rdi), %eax
+	cmp	$0, %eax
+	je	3f
 
 	# Remove element and load for return
 	mov	ArrayQueue.index(%rdi), %eax
@@ -224,6 +281,11 @@ ArrayQueue_remove:
 # Resize
 2:
 	call	ArrayQueue_resize
+	jmp	1b
+
+# Empty ArrayQueue
+3:
+	push	$0
 	jmp	1b
 
 # @function	ArrayQueue_resize
@@ -287,6 +349,70 @@ ArrayQueue_resize:
 	# Free data (old)
 	mov	%rsi, %rdi
 	call	free
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	ArrayQueue_log
+# @description	Log a visual representation of the current state of the ArrayQueue
+# @param	%rdi	Pointer to the ArrayQueue
+# @return	void
+.equ	LENGTH, -8
+.equ	SIZE, -16
+.equ	INDEX, -24
+.equ	DATA, -32
+.equ	COUNTER, -40
+ArrayQueue_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Store variables
+	sub	$40, %rsp
+	mov	ArrayQueue.length(%rdi), %eax
+	mov	%rax, LENGTH(%rbp)
+	mov	ArrayQueue.size(%rdi), %eax
+	mov	%rax, SIZE(%rbp)
+	mov	ArrayQueue.index(%rdi), %eax
+	mov	%rax, INDEX(%rbp)
+	mov	ArrayQueue.data(%rdi), %rax
+	mov	%rax, DATA(%rbp)
+	movq	$0, COUNTER(%rbp)
+
+	mov	$start_delim, %rdi
+	call	log
+
+	# Check for zero length
+	cmpq	$0, LENGTH(%rbp)
+	je	2f
+
+# Print loop
+1:
+	# Print current index
+	mov	DATA(%rbp), %rax
+	mov	INDEX(%rbp), %ecx
+	mov	(%rax, %rcx, 1<<3), %rdi
+	call	log
+
+	# Increment loop counter and check for loop end
+	incl	COUNTER(%rbp)
+	mov	LENGTH(%rbp), %eax
+	cmp	COUNTER(%rbp), %rax
+	jle	2f
+
+	mov	$mid_delim, %rdi
+	call	log
+
+	mov	INDEX(%rbp), %eax		# Index
+	inc	%eax				# Increment index by one
+	xor	%edx, %edx			# Clear remainder
+	divq	SIZE(%rbp)			# Divide by size
+	mov	%rdx, INDEX(%rbp)		# Update the index to be the remainder
+	jmp	1b
+
+2:
+	mov	$end_delim, %rdi
+	call	log
 
 	mov	%rbp, %rsp
 	pop	%rbp

@@ -11,12 +11,14 @@ commands:
 	.quad	exit
 	.quad	ping
 	.quad	arraystack
+	.quad	arrayqueue
 	.quad	0	# Sentinel
 
 handlers:
 	.quad	exit_handler
 	.quad	ping_handler
 	.quad	arraystack_handler
+	.quad	arrayqueue_handler
 	.quad	error_handler
 
 .section .text
