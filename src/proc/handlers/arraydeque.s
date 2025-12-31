@@ -1,0 +1,538 @@
+# proc/handlers/arraydeque.s - ArrayDeque handler
+
+.globl	arraydeque, arraydeque_handler
+
+# ArrayDeque struct
+	.struct	0
+ArrayDeque.data:
+	.struct	ArrayDeque.data + 1<<3
+ArrayDeque.index:
+	.struct	ArrayDeque.index + 1<<2
+ArrayDeque.length:
+	.struct	ArrayDeque.length + 1<<2
+ArrayDeque.size:
+	.struct	ArrayDeque.size + 1<<3
+	.equ	ARRAYDEQUE_SIZE, .
+
+.equ	ARRAYDEQUE_START_SIZE, 1
+
+.section .rodata
+
+.type	arraydeque, @object
+arraydeque:
+	.ascii	"arraydeque\0"
+
+# TODO: REMOVE!!
+item1:
+	.ascii	"Coke\0"
+item2:
+	.ascii	"Fanta\0"
+item3:
+	.ascii	"Sprite\0"
+item4:
+	.ascii	"Lemonade\0"
+item5:
+	.ascii	"Mountain Dew\0"
+item6:
+	.ascii	"Dr. Pepper\0"
+item7:
+	.ascii	"7-Up\0"
+item8:
+	.ascii	"Sierra Mist\0"
+
+.section .bss
+
+# ArrayDeque singleton
+instance:
+	.zero	1<<3
+
+.section .text
+
+# @function	arraydeque_handler
+# @description	Handler for the arraydeque set of commands
+# @param	%rdi	Pointer to the Input data struct
+# @return	void
+.type	arraydeque_handler, @function
+arraydeque_handler:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	cmpq	$0, instance
+	je	new
+
+1:
+	# Length 0 => 1
+	mov	instance, %rdi
+	mov	$0, %rsi
+	mov	$item1, %rdx
+	call	ArrayDeque_add
+
+	# Length 1 => 2
+	mov	$0, %rsi
+	mov	$item2, %rdx
+	call	ArrayDeque_add
+
+	# Length 2 => 3
+	mov	$2, %rsi
+	mov	$item3, %rdx
+	call	ArrayDeque_add
+
+	# Length 3 => 4
+	mov	$2, %rsi
+	mov	$item4, %rdx
+	call	ArrayDeque_add
+
+	# Length 4 => 5
+	mov	$0, %rsi
+	mov	$item5, %rdx
+	call	ArrayDeque_add
+
+	# Length 5 => 6
+	mov	$3, %rsi
+	mov	$item6, %rdx
+	call	ArrayDeque_add
+
+	# Length 6 => 7
+	mov	$6, %rsi
+	mov	$item7, %rdx
+	call	ArrayDeque_add
+
+	# Length 7 => 8
+	mov	$0, %rsi
+	mov	$item8, %rdx
+	call	ArrayDeque_add
+
+	mov	$0, %rsi
+	call	ArrayDeque_get
+
+	mov	$1, %rsi
+	call	ArrayDeque_get
+
+	mov	$2, %rsi
+	call	ArrayDeque_get
+
+	mov	$3, %rsi
+	call	ArrayDeque_get
+
+	mov	$4, %rsi
+	call	ArrayDeque_get
+
+	mov	$5, %rsi
+	call	ArrayDeque_get
+
+	mov	$6, %rsi
+	call	ArrayDeque_get
+
+	mov	$7, %rsi
+	call	ArrayDeque_get
+#b
+	mov	$4, %rsi
+	call	ArrayDeque_get
+
+	mov	$5, %rsi
+	call	ArrayDeque_get
+
+	mov	$6, %rsi
+	call	ArrayDeque_get
+
+	# Length 8 => 7
+	mov	$5, %rsi
+	call	ArrayDeque_remove
+#b
+	mov	$4, %rsi
+	call	ArrayDeque_get
+
+	mov	$5, %rsi
+	call	ArrayDeque_get
+
+	mov	$6, %rsi
+	call	ArrayDeque_get
+
+	mov	$1, %rsi
+	call	ArrayDeque_get
+
+	mov	$2, %rsi
+	call	ArrayDeque_get
+
+	mov	$3, %rsi
+	call	ArrayDeque_get
+
+	# Length 7 => 6
+	mov	$2, %rsi
+	call	ArrayDeque_remove
+#b
+	mov	$1, %rsi
+	call	ArrayDeque_get
+
+	mov	$2, %rsi
+	call	ArrayDeque_get
+
+	mov	$3, %rsi
+	call	ArrayDeque_get
+
+	# Length 6 => 5
+	mov	$5, %rsi
+	call	ArrayDeque_remove
+
+	# Length 5 => 4
+	mov	$0, %rsi
+	call	ArrayDeque_remove
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# ArrayDeque not initialized
+new:
+	call	ArrayDeque_ctor
+	mov	%rax, instance
+	jmp	1b
+
+# @function	ArrayDeque_ctor
+# @description	ArrayDeque constructor
+# @return	%rax	Pointer to the ArrayDeque
+.equ	THIS, -8
+.equ	DATA, -16
+ArrayDeque_ctor:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	mov	$ARRAYDEQUE_SIZE, %rdi
+	call	alloc
+	push	%rax
+
+	mov	$ARRAYDEQUE_START_SIZE, %rdi
+	imul	$8, %rdi
+	call	alloc
+	push	%rax
+
+	mov	THIS(%rbp), %rax
+	mov	DATA(%rbp), %rcx
+	mov	%rcx, ArrayDeque.data(%rax)
+	movl	$0, ArrayDeque.index(%rax)
+	movl	$0, ArrayDeque.length(%rax)
+	movq	$ARRAYDEQUE_START_SIZE, ArrayDeque.size(%rax)
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	ArrayDeque_get
+# @description	Get the element at the specified index
+# @param	%rdi	Pointer to the ArrayDeque
+# @param	%rsi	Index of the element to get
+# @return	%rax	Pointer to the element or NULL if not found
+ArrayDeque_get:
+	call	actual_index			# Actual index in %rax
+	mov	ArrayDeque.data(%rdi), %rcx	# Pointer to "data" in %rcx
+	mov	(%rcx, %rax, 1<<3), %rax
+	ret
+
+# @function	ArrayDeque_set
+# @description	Set the element at the specified index to the specified value
+# @param	%rdi	Pointer to the ArrayDeque
+# @param	%rsi	Index of the element to set
+# @param	%rdx	Pointer to the element to set
+# @return	%rax	Pointer to the previous element
+ArrayDeque_set:
+	mov	%rdx, %r8			# Move new element to %r8 for safekeeping
+	call	actual_index			# Actual index in %rax
+	mov	ArrayDeque.data(%rdi), %rcx	# Pointer to "data" in %rcx
+	mov	(%rcx, %rax, 1<<3), %rax	# Move previous element into %rax to return
+	mov	%r8, (%rcx, %rax, 1<<3)		# Move new element into position
+	ret
+
+# @function	ArrayDeque_add
+# @description	Add an element to the ArrayDeque at the specified index
+# @param	%rdi	Pointer to the ArrayDeque
+# @param	%rsi	Index of the element to add
+# @param	%rdx	Pointer to the element
+# @return	%rax	Pointer to the element on success, NULL on failure
+.equ	KEY, -8
+.equ	VALUE, -16
+ArrayDeque_add:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Store some variables on the stack for safekeeping
+	sub	$16, %rsp
+	mov	%rsi, KEY(%rbp)			# Index of the element to add
+	mov	%rdx, VALUE(%rbp)		# Pointer to the element to add
+
+	# Check is a resize is needed
+	mov	ArrayDeque.length(%rdi), %eax
+	cmp	%rax, ArrayDeque.size(%rdi)
+	jle	5f
+
+6:
+	# Determine which half of the backing array this operation is going to affect
+	mov	ArrayDeque.length(%rdi), %eax	# Length in %rax
+	mov	$2, %rcx			# DIV does not accept an immediate operand
+	xor	%rdx, %rdx			# Zero out remainder
+	div	%rcx				# Divide by two
+
+	# TODO this does "integer" division but it would be really nice if it would "round" result
+	cmp	%rax, %rsi			# Compare requested index to the midpoint
+	jge	2f				# Jumps if index is in the second half
+
+# Index in first half of the array. If this is the case we need to adjust the base index to be one
+# to the left (potentially wrapping around to the end of the backing array)
+	mov	$-1, %rsi			# This new base index can be obtained by requesting
+	call	actual_index			# the "actual index" of negative one
+	mov	%eax, ArrayDeque.index(%rdi)
+
+	xor	%rcx, %rcx			# Loop counter
+1:
+	# We are finished when the requested index is equal (or less than) the loop counter
+	mov	KEY(%rbp), %rsi			# Restore add index first bc %rsi gets clobbered
+	cmp	%rcx, %rsi
+	jle	4f
+
+	# Determine destination index which is for the loop counter
+	mov	%rcx, %rsi
+	call	actual_index
+	mov	%rax, %r8
+
+	# Determine source index which is for the loop counter + 1
+	mov	%rcx, %rsi
+	inc	%rsi
+	call	actual_index
+	mov	%rax, %r9
+
+	# Perform the move
+	mov	ArrayDeque.data(%rdi), %rax	# Pointer to "data"
+	mov	(%rax, %r9, 1<<3), %rdx		# Obtain source element and move it to the ...
+	mov	%rdx, (%rax, %r8, 1<<3)		# destination
+
+	# Prep for next loop iteration
+	inc	%rcx
+	cmp	%rcx, %rsi
+	jmp	1b
+
+# Index in second half of the array
+2:
+	mov	ArrayDeque.length(%rdi), %ecx	# Length is the loop counter and we decrement
+
+3:
+	# We are finished when the requested index is equal (or greater than) the loop counter
+	cmp	%rcx, %rsi
+	jge	4f
+
+	# Determine destination index which is for the loop counter
+	mov	%rcx, %rsi
+	call	actual_index
+	mov	%rax, %r8
+
+	# Determine source index which is for the loop counter - 1
+	mov	%rcx, %rsi
+	dec	%rsi
+	call	actual_index
+	mov	%rax, %r9
+
+	# Perform the move
+	mov	ArrayDeque.data(%rdi), %rax	# Pointer to "data"
+	mov	(%rax, %r9, 1<<3), %rdx		# Obtain source element and move it to the ...
+	mov	%rdx, (%rax, %r8, 1<<3)		# destination
+
+	# Prep for next loop iteration
+	dec	%rcx
+	mov	KEY(%rbp), %rsi			# Restore add index bc %rsi gets clobbered
+	jmp	3b
+
+# Space has been created for the new element. Insertion index is in %rsi
+4:
+	call	actual_index			# Puts "actual index" in %rax
+
+	# Move the element into place
+	mov	VALUE(%rbp), %rcx		# Pointer to the element to add
+	mov	ArrayDeque.data(%rdi), %rdx	# Pointer to "data"
+	mov	%rcx, (%rdx, %rax, 1<<3)	# Move the element into place
+
+	# Increment the length
+	incl	ArrayDeque.length(%rdi)
+
+	# Return the new element
+	mov	%rcx, %rax
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# Resize needed
+5:
+	call	resize
+	jmp	6b
+
+# @function	ArrayDeque_remove
+# @description	Remove the element at the requested index
+# @param	%rdi	Pointer to the ArrayDeque
+# @param	%rsi	Index of the element to remove
+# @return	%rax	Pointer to the removed element
+.equ	VALUE, -8
+ArrayDeque_remove:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	call	ArrayDeque_get		# Put's element to be removed on the stack for easy ...
+	push	%rax			# returning later
+
+	# Determine which half of the backing array this operation is going to affect
+	mov	ArrayDeque.length(%rdi), %eax	# Length in %rax
+	mov	$2, %rcx			# DIV does not accept an immediate operand
+	xor	%rdx, %rdx			# Zero out remainder
+	div	%rcx				# Divide by two
+
+	# In either case the loop counter starts at the requested index
+	mov	%rsi, %rcx			# Loop counter
+
+	# TODO this does "integer" division but it would be really nice if it would "round" result
+	cmp	%rax, %rsi			# Compare requested index to the midpoint
+	jge	3f				# Jumps if index is in the second half
+
+# The index of the element is in the FIRST half of the backing array
+1:
+	# We start at the requested index and decrement. The loop is over when we reach one
+	cmp	$0, %rcx
+	jle	2f
+
+	# Determine destination index which is for the loop counter
+	mov	%rcx, %rsi
+	call	actual_index
+	mov	%rax, %r8
+
+	# Determine source index which is for the loop counter - 1
+	mov	%rcx, %rsi
+	dec	%rsi
+	call	actual_index
+	mov	%rax, %r9
+
+	# Perform the move
+	mov	ArrayDeque.data(%rdi), %rax	# Pointer to "data"
+	mov	(%rax, %r9, 1<<3), %rdx		# Obtain source element and move it to the ...
+	mov	%rdx, (%rax, %r8, 1<<3)		# destination
+
+	# Prepare next iteration
+	dec	%rcx
+	jmp	1b
+
+# We are still operating on the FIRST half of the backing array as there is one more operation
+# We need to move the base index one to the right which can be achieved by finding the actual
+# index of one
+2:
+	mov	$1, %rsi			# This new base index can be obtained by requesting
+	call	actual_index			# the "actual index" of one
+	mov	%eax, ArrayDeque.index(%rdi)
+	jmp	4f
+
+# The index of the element is in the SECOND half of the backing array
+3:
+	# We start at the requested index and we increment. The loop is over when we reach length
+	# minus 2
+	mov	ArrayDeque.length(%rdi), %eax
+	dec	%rax
+	cmp	%rax, %rcx
+	jge	4f
+
+	# Determine destination index which is for the loop counter
+	mov	%rcx, %rsi
+	call	actual_index
+	mov	%rax, %r8
+
+	# Determine source index which is for the loop counter + 1
+	mov	%rcx, %rsi
+	inc	%rsi
+	call	actual_index
+	mov	%rax, %r9
+
+	# Perform the move
+	mov	ArrayDeque.data(%rdi), %rax	# Pointer to "data"
+	mov	(%rax, %r9, 1<<3), %rdx		# Obtain source element and move it to the ...
+	mov	%rdx, (%rax, %r8, 1<<3)		# destination
+
+	# Prep for next loop iteration
+	inc	%rcx
+	jmp	3b
+
+# All moves are complete, now we only need to decrement the length and check if a resize is needed
+4:
+	decl	ArrayDeque.length(%rdi)
+	mov	ArrayDeque.length(%rdi), %rax
+	imul	$3, %rax
+	cmp	ArrayDeque.size(%rdi), %rax
+	jge	6f
+
+5:
+	pop	%rax
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# Resize needed
+6:
+	call	resize
+	jmp	5b
+
+# @function	resize
+# @description	Private function to resize the ArrayDeque to be two times its length. As a side
+#		effect the index is reset. If the length is zero this is a no-op.
+# @param	%rdi	Pointer to the ArrayDeque
+# @return	void
+resize:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	push	%rdi				# We preserve the pointer in %rdi in all routines
+	mov	ArrayDeque.length(%rdi), %edi
+	cmp	$1, %rdi			# We need to ensure size never drops below one as
+	jl	3f				# that is unrecoverable with the current logic
+
+	# Allocate a new backing array
+	imul	$16, %rdi			# Size needs to be in bytes and we are doing 2x
+	call	alloc
+	pop	%rdi				# Restore the ArrayDeque pointer in %rdi
+
+	mov	ArrayDeque.data(%rdi), %r8	# Pointer to "old" data
+	mov	%rax, %r9			# Pointer to "new" data
+	xor	%rsi, %rsi			# Reset loop counter
+# Move loop
+1:
+	cmp	ArrayDeque.length(%rdi), %esi
+	jge	2f
+
+	# Determine the source index for the loop counter
+	call	actual_index
+	mov	(%r8, %rax, 1<<3), %rcx		# Obtain element at "actual index" in "old" data
+	mov	%rcx, (%r9, %rsi, 1<<3)		# Copy element at "zero-based" index to "new" data
+	
+	inc	%rsi
+	jmp	1b
+
+# Move is complete, now we just need to update the data pointer and the index
+2:
+	movl	$0, ArrayDeque.index(%rdi)	# Reset index
+	mov	%r9, ArrayDeque.data(%rdi)
+
+	# Free the old space
+	push	%rdi
+	mov	%r8, %rdi
+	call	free
+	pop	%rdi
+
+3:
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	actual_index
+# @description	Private function to determine the "actual index" for the given storage key
+# @param	%rdi	Pointer to the ArrayDeque
+# @param	%rsi	The storage key
+# @return	%rax	The "actual index" of the storage key
+actual_index:
+	mov	ArrayDeque.index(%rdi), %eax	# Start with the base index
+	add	%rsi, %rax			# Add the storage key
+	xor	%rdx, %rdx			# Zero out the remainder
+	divq	ArrayDeque.size(%rdi)		# Divide by the size
+	mov	%rdx, %rax			# Remainder is the "actual index"
+	ret
