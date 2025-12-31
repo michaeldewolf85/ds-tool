@@ -20,7 +20,6 @@ prompt:
 .section .text
 
 _start:
-	call	arrayqueue_handler
 	# Print logo
 	mov	$SYS_WRITE, %rax
 	mov	$STDOUT, %rdi

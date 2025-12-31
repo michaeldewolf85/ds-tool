@@ -90,7 +90,9 @@ arraystack_handler:
 	mov	Input.argv + 8(%rbx), %rdi	# Second argument is the operation
 	xor	%r12, %r12			# Index of found operation
 
-	cmp	$3, Input.argc(%rbx)		# Must be at least 3 arguments to be valid
+	cmpq	$1, Input.argc(%rbx)		# If only one argument, print the arraystack ... 
+	je	4f
+	cmpq	$3, Input.argc(%rbx)		# Otherwise, we must have 3 arguments to be valid
 	jl	error
 
 check:
@@ -126,6 +128,7 @@ match:
 	mov	$newline, %rdi
 	call	log
 
+4:
 	mov	instance, %rdi
 	call	ArrayStack_log
 
