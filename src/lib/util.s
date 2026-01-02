@@ -3,7 +3,12 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	atoi, strcmp
+.globl	atoi, itoa, strcmp
+
+.section .bss
+
+int_buffer:
+	.skip	1<<6		# 64 character buffer for int => string conversions
 
 .section .text
 
@@ -35,6 +40,44 @@ atoi:
 	ret
 3:
 	mov	$-1, %rax
+	ret
+
+# @function	itoa
+# @description	Convert an integer to a string
+# @param	%rdi	The integer to convert
+# @return	void
+.type	itoa, @function
+itoa:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	xor	%rcx, %rcx	# Count the number of digits
+	mov	$10, %r8	# DIV requires the divisor to be in a register
+
+	push	$NULL		# Adds null termination to string
+	inc	%rcx
+
+	mov	%rdi, %rax
+1:
+	xor	%rdx, %rdx
+	div	%r8
+	add	$'0', %rdx
+	push	%rdx
+
+	inc	%rcx
+
+	cmp	$0, %eax
+	jne	1b
+
+	# Move bytes into buffer
+	mov	$int_buffer, %rdi	# Destination
+	mov	%rsp, %rsi	# Source
+	rep	movsb
+
+	mov	$int_buffer, %rax 
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	strcmp

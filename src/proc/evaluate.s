@@ -13,6 +13,7 @@ commands:
 	.quad	arraystack
 	.quad	arrayqueue
 	.quad	arraydeque
+	.quad	dualarraydeque
 	.quad	0	# Sentinel
 
 handlers:
@@ -21,6 +22,7 @@ handlers:
 	.quad	arraystack_handler
 	.quad	arrayqueue_handler
 	.quad	arraydeque_handler
+	.quad	dualarraydeque_handler
 	.quad	error_handler
 
 .section .text

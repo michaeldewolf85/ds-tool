@@ -52,7 +52,7 @@ mid_delim:
 	.ascii	", \0"
 
 end_delim:
-	.ascii	" ]\n\0"
+	.ascii	" ]\n\n\0"
 
 newline:
 	.ascii	"\n\0"
@@ -62,6 +62,19 @@ malformed:
 
 null:
 	.ascii	"NULL\0"
+
+## Labels
+array:
+	.ascii	"Raw    => \0"
+
+length:
+	.ascii	"Length => \0"
+
+size:
+	.ascii	"Size   => \0"
+
+index:
+	.ascii	"Index  => \0"
 
 .section .bss
 
@@ -363,12 +376,13 @@ ArrayQueue_resize:
 .equ	INDEX, -24
 .equ	DATA, -32
 .equ	COUNTER, -40
+.equ	THIS, -48
 ArrayQueue_log:
 	push	%rbp
 	mov	%rsp, %rbp
 
 	# Store variables
-	sub	$40, %rsp
+	sub	$48, %rsp
 	mov	ArrayQueue.length(%rdi), %eax
 	mov	%rax, LENGTH(%rbp)
 	mov	ArrayQueue.size(%rdi), %eax
@@ -378,6 +392,7 @@ ArrayQueue_log:
 	mov	ArrayQueue.data(%rdi), %rax
 	mov	%rax, DATA(%rbp)
 	movq	$0, COUNTER(%rbp)
+	mov	%rdi, THIS(%rbp)
 
 	mov	$start_delim, %rdi
 	call	log
@@ -411,6 +426,90 @@ ArrayQueue_log:
 	jmp	1b
 
 2:
+	# For some reason the code above MODIFIES the index so we reset it here
+	mov	THIS(%rbp), %rdi
+	mov	ArrayQueue.index(%rdi), %eax
+	mov	%rax, INDEX(%rbp)
+
+	mov	$end_delim, %rdi
+	call	log
+
+	# Log length
+	mov	$length, %rdi
+	call	log
+
+	mov	LENGTH(%rbp), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	# Log size
+	mov	$size, %rdi
+	call	log
+
+	mov	SIZE(%rbp), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	# Log index
+	mov	$index, %rdi
+	call	log
+
+	mov	INDEX(%rbp), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	# Log backing array
+	mov	$array, %rdi
+	call	log
+
+	mov	$start_delim, %rdi
+	call	log
+
+	mov	DATA(%rbp), %r8
+	mov	SIZE(%rbp), %esi	# We use the size ...
+	cmp	$0, %esi		# Check for zero length
+	je	5f
+
+	sub	INDEX(%rbp), %esi	# ... minus the index to calculate if a position has value
+	xor	%rcx, %rcx		# Loop counter
+# Print loop for backing array
+3:
+	mov	%esi, %eax		# Start with our size minus index ...
+	add	%ecx, %eax		# ... add the current index being examined ...
+	xor	%rdx, %rdx		# ... zero out the remainder ...
+	divq	SIZE(%rbp)		# ... and divide by the size ...
+	cmp	LENGTH(%rbp), %rdx	# ... if the remainder is ge to length
+	jge	4f			# ... we have an empty spot
+
+	mov	(%r8, %rcx, 1<<3), %rdi
+	call	log
+
+4:
+	inc	%rcx
+	cmp	SIZE(%rbp), %rcx
+	jge	5f
+
+	mov	$mid_delim, %rdi
+	call	log
+
+	jmp	3b
+
+5:
 	mov	$end_delim, %rdi
 	call	log
 
