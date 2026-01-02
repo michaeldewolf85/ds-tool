@@ -1,5 +1,7 @@
 # proc/handlers/arraydeque.s - ArrayDeque handler
 
+.include	"structs.inc"
+
 .globl	arraydeque, arraydeque_handler
 
 # ArrayDeque struct
@@ -22,23 +24,45 @@ ArrayDeque.size:
 arraydeque:
 	.ascii	"arraydeque\0"
 
-# TODO: REMOVE!!
-item1:
-	.ascii	"Coke\0"
-item2:
-	.ascii	"Fanta\0"
-item3:
-	.ascii	"Sprite\0"
-item4:
-	.ascii	"Lemonade\0"
-item5:
-	.ascii	"Mountain Dew\0"
-item6:
-	.ascii	"Dr. Pepper\0"
-item7:
-	.ascii	"7-Up\0"
-item8:
-	.ascii	"Sierra Mist\0"
+get:
+	.ascii	"get\0"
+set:
+	.ascii	"set\0"
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+
+commands:
+	.quad	get
+	.quad	set
+	.quad	add
+	.quad	remove
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	ArrayDeque_get
+	.quad	ArrayDeque_set
+	.quad	ArrayDeque_add
+	.quad	ArrayDeque_remove
+
+start_delim:
+	.ascii	"[ \0"
+
+mid_delim:
+	.ascii	", \0"
+
+end_delim:
+	.ascii	" ]\n\0"
+
+newline:
+	.ascii	"\n\0"
+
+malformed:
+	.ascii	"Malformed command\n\0"
+
+null:
+	.ascii	"NULL\0"
 
 .section .bss
 
@@ -61,126 +85,60 @@ arraydeque_handler:
 	je	new
 
 1:
-	# Length 0 => 1
+	mov	Input.argv + 8(%rbx), %rdi	# Second argument is the operation
+	xor	%r12, %r12			# Index of found operation
+
+	cmpq	$1, Input.argc(%rbx)		# If only one argument, print the arraystack ... 
+	je	4f
+
+	cmpq	$3, Input.argc(%rbx)		# Otherwise, we must have 3 arguments to be valid
+	jl	error
+
+check:
+	mov	commands(, %r12, 8), %rsi
+	cmp	$0, %rsi			# Check for the sentinel, if we match here the 
+	je	error				# command was not found
+
+	call	strcmp
+	cmp	$0, %rax
+	je	match
+
+	inc	%r12
+	jmp	check
+
+match:
+	mov	Input.argv + 16(%rbx), %rdi	# Third argument is always an index
+	call	atoi
+	cmp	$0, %rax
+	jl	error
+
+	mov	%rax, %rsi
+	mov	Input.argv + 24(%rbx), %rdx	# Third argument may be a string pointer
+
+	mov	instance, %rdi			# Ensure instance is in place
+	call	*handlers(, %r12, 8)		# Call the handler
+
+	mov	$null, %r12
+	mov	%rax, %rdi
+	cmp	$0, %rax
+	cmove	%r12, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+4:
 	mov	instance, %rdi
-	mov	$0, %rsi
-	mov	$item1, %rdx
-	call	ArrayDeque_add
-
-	# Length 1 => 2
-	mov	$0, %rsi
-	mov	$item2, %rdx
-	call	ArrayDeque_add
-
-	# Length 2 => 3
-	mov	$2, %rsi
-	mov	$item3, %rdx
-	call	ArrayDeque_add
-
-	# Length 3 => 4
-	mov	$2, %rsi
-	mov	$item4, %rdx
-	call	ArrayDeque_add
-
-	# Length 4 => 5
-	mov	$0, %rsi
-	mov	$item5, %rdx
-	call	ArrayDeque_add
-
-	# Length 5 => 6
-	mov	$3, %rsi
-	mov	$item6, %rdx
-	call	ArrayDeque_add
-
-	# Length 6 => 7
-	mov	$6, %rsi
-	mov	$item7, %rdx
-	call	ArrayDeque_add
-
-	# Length 7 => 8
-	mov	$0, %rsi
-	mov	$item8, %rdx
-	call	ArrayDeque_add
-
-	mov	$0, %rsi
-	call	ArrayDeque_get
-
-	mov	$1, %rsi
-	call	ArrayDeque_get
-
-	mov	$2, %rsi
-	call	ArrayDeque_get
-
-	mov	$3, %rsi
-	call	ArrayDeque_get
-
-	mov	$4, %rsi
-	call	ArrayDeque_get
-
-	mov	$5, %rsi
-	call	ArrayDeque_get
-
-	mov	$6, %rsi
-	call	ArrayDeque_get
-
-	mov	$7, %rsi
-	call	ArrayDeque_get
-#b
-	mov	$4, %rsi
-	call	ArrayDeque_get
-
-	mov	$5, %rsi
-	call	ArrayDeque_get
-
-	mov	$6, %rsi
-	call	ArrayDeque_get
-
-	# Length 8 => 7
-	mov	$5, %rsi
-	call	ArrayDeque_remove
-#b
-	mov	$4, %rsi
-	call	ArrayDeque_get
-
-	mov	$5, %rsi
-	call	ArrayDeque_get
-
-	mov	$6, %rsi
-	call	ArrayDeque_get
-
-	mov	$1, %rsi
-	call	ArrayDeque_get
-
-	mov	$2, %rsi
-	call	ArrayDeque_get
-
-	mov	$3, %rsi
-	call	ArrayDeque_get
-
-	# Length 7 => 6
-	mov	$2, %rsi
-	call	ArrayDeque_remove
-#b
-	mov	$1, %rsi
-	call	ArrayDeque_get
-
-	mov	$2, %rsi
-	call	ArrayDeque_get
-
-	mov	$3, %rsi
-	call	ArrayDeque_get
-
-	# Length 6 => 5
-	mov	$5, %rsi
-	call	ArrayDeque_remove
-
-	# Length 5 => 4
-	mov	$0, %rsi
-	call	ArrayDeque_remove
-
+	call	ArrayDeque_log
+3:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp 3b
 
 # ArrayDeque not initialized
 new:
@@ -312,6 +270,7 @@ ArrayDeque_add:
 # Index in second half of the array
 2:
 	mov	ArrayDeque.length(%rdi), %ecx	# Length is the loop counter and we decrement
+	mov	KEY(%rbp), %rsi			# Restore add index first bc %rsi gets clobbered
 
 3:
 	# We are finished when the requested index is equal (or greater than) the loop counter
@@ -473,25 +432,90 @@ ArrayDeque_remove:
 	call	resize
 	jmp	5b
 
+# @function	ArrayDeque_log
+# @description	Log an ArrayDeque
+# @param	%rdi	Pointer to the ArrayDeque
+# @return	void
+.equ	THIS, -8
+.equ	LEN, -16
+.equ	CTR, -24
+ArrayDeque_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Store some variables
+	sub	$24, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	ArrayDeque.length(%rdi), %eax
+	mov	%rax, LEN(%rbp)
+	movq	$0, CTR(%rbp)
+
+	mov	$start_delim, %rdi
+	call	log
+
+	cmpq	$0, LEN(%rbp)			# Check for zero length
+	je	2f
+
+# Print loop
+1:
+	mov	CTR(%rbp), %rsi			# Loop counter
+	mov	THIS(%rbp), %rdi
+	call	actual_index			# Put "actual index" of first value in %rax
+
+	mov	ArrayDeque.data(%rdi), %rcx
+	mov	(%rcx, %rax, 1<<3), %rdi
+	call	log
+
+	inc	%rsi
+	cmp	%rsi, LEN(%rbp)
+	jle	2f
+
+	mov	%rsi, CTR(%rbp)
+
+	mov	$mid_delim, %rdi
+	call	log
+	jmp	1b
+
+2:
+	mov	$end_delim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
 # @function	resize
 # @description	Private function to resize the ArrayDeque to be two times its length. As a side
 #		effect the index is reset. If the length is zero this is a no-op.
 # @param	%rdi	Pointer to the ArrayDeque
 # @return	void
+.equ	THIS, -8
+.equ	SIZE, -16
 resize:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	push	%rdi				# We preserve the pointer in %rdi in all routines
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
 	mov	ArrayDeque.length(%rdi), %edi
 	cmp	$1, %rdi			# We need to ensure size never drops below one as
 	jl	3f				# that is unrecoverable with the current logic
 
-	# Allocate a new backing array
-	imul	$16, %rdi			# Size needs to be in bytes and we are doing 2x
-	call	alloc
-	pop	%rdi				# Restore the ArrayDeque pointer in %rdi
+	# Calculate the size and cache on the stack
+	imul	$2, %rdi
+	mov	%rdi, SIZE(%rbp)
 
+	# Allocate a new backing array
+	imul	$8, %rdi			# Requested size needs to be in bytes
+	call	alloc
+
+	mov	THIS(%rbp), %rdi		# Restore the ArrayDeque pointer in %rdi
 	mov	ArrayDeque.data(%rdi), %r8	# Pointer to "old" data
 	mov	%rax, %r9			# Pointer to "new" data
 	xor	%rsi, %rsi			# Reset loop counter
@@ -513,12 +537,16 @@ resize:
 	movl	$0, ArrayDeque.index(%rdi)	# Reset index
 	mov	%r9, ArrayDeque.data(%rdi)
 
+	# Set the updated size
+	mov	SIZE(%rbp), %rax
+	mov	%rax, ArrayDeque.size(%rdi)
+
 	# Free the old space
-	push	%rdi
 	mov	%r8, %rdi
 	call	free
-	pop	%rdi
 
+	# Restore "this" pointer
+	mov	THIS(%rbp), %rdi
 3:
 	mov	%rbp, %rsp
 	pop	%rbp
