@@ -181,9 +181,20 @@ ArrayDeque_ctor:
 # @param	%rsi	Index of the element to get
 # @return	%rax	Pointer to the element or NULL if not found
 ArrayDeque_get:
+	# Validates the passed index
+	mov	ArrayDeque.length(%rdi), %ecx	# Length of array in %rcx
+	cmp	%rsi, %rcx
+	jc	1f				# If there's carry it's either too big or negative
+	jz	1f				# Also need to check for equals
+
 	call	actual_index			# Actual index in %rax
 	mov	ArrayDeque.data(%rdi), %rcx	# Pointer to "data" in %rcx
 	mov	(%rcx, %rax, 1<<3), %rax
+	ret
+
+# Error
+1:
+	xor	%rax, %rax
 	ret
 
 # @function	ArrayDeque_set
@@ -193,11 +204,23 @@ ArrayDeque_get:
 # @param	%rdx	Pointer to the element to set
 # @return	%rax	Pointer to the previous element
 ArrayDeque_set:
+	# Validates the passed index
+	mov	ArrayDeque.length(%rdi), %ecx	# Length of array in %rcx
+	cmp	%rsi, %rcx
+	jc	1f				# If there's carry it's either too big or negative
+	jz	1f				# Also need to check for equals
+
 	mov	%rdx, %r8			# Move new element to %r8 for safekeeping
 	call	actual_index			# Actual index in %rax
 	mov	ArrayDeque.data(%rdi), %rcx	# Pointer to "data" in %rcx
-	mov	(%rcx, %rax, 1<<3), %rax	# Move previous element into %rax to return
+	mov	(%rcx, %rax, 1<<3), %r9		# Move previous element into %rax to return
 	mov	%r8, (%rcx, %rax, 1<<3)		# Move new element into position
+	mov	%r9, %rax
+	ret
+
+# Error
+1:
+	xor	%rax, %rax
 	ret
 
 # @function	ArrayDeque_add
@@ -209,6 +232,11 @@ ArrayDeque_set:
 .equ	KEY, -8
 .equ	VALUE, -16
 ArrayDeque_add:
+	# Validates the passed index
+	mov	ArrayDeque.length(%rdi), %ecx	# Length of array in %rcx
+	cmp	%rsi, %rcx
+	jc	7f				# If there's carry it's either too big or negative
+
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -322,6 +350,11 @@ ArrayDeque_add:
 	call	resize
 	jmp	6b
 
+# Error index
+7:
+	xor	%rax, %rax
+	ret
+
 # @function	ArrayDeque_remove
 # @description	Remove the element at the requested index
 # @param	%rdi	Pointer to the ArrayDeque
@@ -329,6 +362,12 @@ ArrayDeque_add:
 # @return	%rax	Pointer to the removed element
 .equ	VALUE, -8
 ArrayDeque_remove:
+	# Validates the passed index
+	mov	ArrayDeque.length(%rdi), %ecx	# Length of array in %rcx
+	cmp	%rsi, %rcx
+	jc	7f				# If there's carry it's either too big or negative
+	jz	7f				# Also need to check for equals
+
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -431,6 +470,11 @@ ArrayDeque_remove:
 6:
 	call	resize
 	jmp	5b
+
+# Error index
+7:
+	xor	%rax, %rax
+	ret
 
 # @function	ArrayDeque_log
 # @description	Log an ArrayDeque
