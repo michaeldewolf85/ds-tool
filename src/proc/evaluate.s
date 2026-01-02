@@ -12,6 +12,7 @@ commands:
 	.quad	ping
 	.quad	arraystack
 	.quad	arrayqueue
+	.quad	arraydeque
 	.quad	0	# Sentinel
 
 handlers:
@@ -19,6 +20,7 @@ handlers:
 	.quad	ping_handler
 	.quad	arraystack_handler
 	.quad	arrayqueue_handler
+	.quad	arraydeque_handler
 	.quad	error_handler
 
 .section .text
