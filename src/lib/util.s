@@ -73,7 +73,7 @@ itoa:
 2:
 	pop	%rax
 	mov	$int_buffer, %r8
-	mov	%al, (%r8, %rdx)
+	mov	%al, int_buffer(, %rdx)
 	inc	%rdx
 	cmp	%rcx, %rdx
 	jl	2b
