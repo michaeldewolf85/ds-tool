@@ -3,7 +3,8 @@
 .include	"common.inc"
 .include	"structs.inc"
 
-.globl	arraystack, arraystack_handler
+.globl	arraystack, arraystack_handler, ArrayStack_get, ArrayStack_set, ArrayStack_add
+.globl	ArrayStack_remove, ArrayStack_log, ArrayStack_ctor, ArrayStack_length, ArrayStack_size
 
 # ArrayStack struct
 	.struct	0
@@ -15,7 +16,7 @@ ArrayStack.data:
 	.struct	ArrayStack.data + 1<<3
 	.equ	ARRAYSTACK_SIZE, .
 
-.equ	ARRAYSTACK_START_SIZE, 1<<3
+.equ	ARRAYSTACK_START_SIZE, 1
 
 .section .rodata
 
@@ -53,7 +54,7 @@ mid_delim:
 	.ascii	", \0"
 
 end_delim:
-	.ascii	" ]\n\0"
+	.ascii	" ]\n\n\0"
 
 newline:
 	.ascii	"\n\0"
@@ -63,6 +64,16 @@ malformed:
 
 null:
 	.ascii	"NULL\0"
+
+## Labels
+array:
+	.ascii	"Raw    => \0"
+
+length:
+	.ascii	"Length => \0"
+
+size:
+	.ascii	"Size   => \0"
 
 .section .bss
 
@@ -76,8 +87,12 @@ instance:
 # @description	Handler for the arraystack set of commands
 # @param	%rdi	Pointer to the Input struct
 # @return	void
+.equ	RETURN_VALUE, -8
 .type	arraystack_handler, @function
 arraystack_handler:
+	push	%rbp
+	mov	%rsp, %rbp
+
 	push	%rbx
 	push	%r12
 	mov	%rdi, %rbx
@@ -119,6 +134,12 @@ match:
 	mov	instance, %rdi			# Ensure instance is in place
 	call	*handlers(, %r12, 8)		# Call the handler
 
+	# Save return value on the stack
+	sub	$8, %rsp
+	mov	%rax, RETURN_VALUE(%rbp)
+
+	# Log return value
+	mov	RETURN_VALUE(%rbp), %rax
 	mov	$null, %r12
 	mov	%rax, %rdi
 	cmp	$0, %rax
@@ -135,6 +156,9 @@ match:
 3:
 	pop	%r12
 	pop	%rbx
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 error:
@@ -165,6 +189,7 @@ ArrayStack_ctor:
 
 	# Allocation for the arraystack's data
 	mov	$ARRAYSTACK_START_SIZE, %rdi
+	imul	$8, %rdi
 	call	alloc
 	# TODO: Error handling
 
@@ -176,11 +201,30 @@ ArrayStack_ctor:
 	pop	%rbx
 	ret
 
+# @function	ArrayStack_length
+# @description	Returns the length attribute of the ArrayStack so callers do not need to know 
+#		internals
+# @param	%rdi	Pointer to the ArrayStack
+# @return	%rax	The length of the ArrayStack
+ArrayStack_length:
+	mov	ArrayStack.length(%rdi), %eax
+	ret
+
+# @function	ArrayStack_size
+# @description	Returns the size attribute of the ArrayStack so callers do not need to know 
+#		internals
+# @param	%rdi	Pointer to the ArrayStack
+# @return	%rax	The size of the ArrayStack
+ArrayStack_size:
+	mov	ArrayStack.size(%rdi), %eax
+	ret
+
 # @function	ArrayStack_get
 # @description	Get the element at a position
 # @param	%rdi	Address of the arraystack
 # @param	%rsi	The index of the element to get
 # @return	%rax	The address of the element or NULL
+.type	ArrayStack_get, @function
 ArrayStack_get:
 	# Validates the passed index
 	mov	ArrayStack.length(%rdi), %ecx	# Length of array in %rcx
@@ -201,17 +245,41 @@ ArrayStack_get:
 # @param	%rdi	Address of the arraystack
 # @param	%rsi	The index of the element to set
 # @param	%rdx	The address of the element to set
-# @param	%rax	The address of the element
+# @param	%rax	The address of the previous element
+.equ	THIS, -8
+.equ	PREV, -16
+.type	ArrayStack_set, @function
 ArrayStack_set:
+	push	%rbp
+	mov	%rsp, %rbp
+	
 	# Validates the passed index
 	mov	ArrayStack.length(%rdi), %ecx	# Length of array in %rcx
 	cmp	%rsi, %rcx
 	jc	1f				# If there's carry it's either too big or negative
 	jz	1f				# Also need to check for equals
 
+	# Stack variables
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
 	mov	ArrayStack.data(%rdi), %rax	# %rax now holds the address of "data"
+
+	# Get the previous element first since that will be the return value
+	mov	(%rax, %rsi, 1<<3), %r8
+	mov	%r8, PREV(%rbp)
+
+	# Move the new element into place
 	mov	%rdx, (%rax, %rsi, 1<<3)
-	mov	%rdx, %rax
+
+	# Restore %rdi pointer
+	mov	THIS(%rbp), %rdi
+
+	# Put the previous element as the return value
+	mov	PREV(%rbp), %rax
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 # Unhappy path, invalid index
 1:
@@ -225,6 +293,7 @@ ArrayStack_set:
 # @param	%rsi	The index of the element to add
 # @param	%rdx	The address of the element
 # @return	%rax	The address of the element
+.type	ArrayStack_add, @function
 ArrayStack_add:
 	push	%rbx				# The arraystack
 	push	%r12				# The length
@@ -242,7 +311,6 @@ ArrayStack_add:
 
 	# Check if a resize is needed ...
 	mov	%r12d, %eax
-	imul	$8, %eax			# Size is in bytes
 	cmp	ArrayStack.size(%rbx), %eax
 	jge	3f
 
@@ -286,6 +354,7 @@ ArrayStack_add:
 # @param	%rdi	Address of the arraystack
 # @param	%rsi	The index of the element to remove
 # @return	%rax	The address of the element
+.type	ArrayStack_remove, @function
 ArrayStack_remove:
 	push	%rbx				# The arraystack instance
 	push	%r12				# The requested index
@@ -314,7 +383,7 @@ ArrayStack_remove:
 
 	# Check if a resize is needed ...
 	mov	ArrayStack.length(%rbx), %eax
-	imul	$24, %eax			# We resize down when size is 3x the length
+	imul	$3, %eax			# We resize down when size is 3x the length
 	cmp	ArrayStack.size(%rbx), %eax
 	jle	3f
 
@@ -356,11 +425,12 @@ ArrayStack_resize:
 
 	# We aim to have double the length available and each item is 8 bytes so the multiplier is
 	# 16x
-	mov	$16, %r13d
+	mov	$2, %r13d
 	imul	%r12d, %r13d
 
 	# Allocate a new array, pointer to new memory location is in %rax
 	mov	%r13, %rdi
+	imul	$8, %rdi
 	call	alloc
 	# TODO: Error handling + Need to call FREE!!
 
@@ -418,6 +488,65 @@ ArrayStack_log:
 	call	log
 	jmp	1b
 2:
+	mov	$end_delim, %rdi
+	call	log
+
+	# Log length
+	mov	$length, %rdi
+	call	log
+
+	mov	ArrayStack.length(%rbx), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	# Log size
+	mov	$size, %rdi
+	call	log
+
+	mov	ArrayStack.size(%rbx), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	# Log backing array
+	mov	$array, %rdi
+	call	log
+
+	mov	$start_delim, %rdi
+	call	log
+
+	mov	ArrayStack.size(%rbx), %r12d
+	mov	ArrayStack.data(%rbx), %r13
+
+	xor	%r14, %r14			# Zero out addressing index
+# Loop all the items
+3:
+	cmp	%r14d, ArrayStack.length(%rbx)
+	jle	4f
+
+	mov	(%r13, %r14, 8), %rdi
+	call	log
+
+4:
+	inc	%r14
+	cmp	%r12, %r14
+	jge	5f				# Skip middle delimiter for last iteration
+
+	mov	$mid_delim, %rdi
+	call	log
+
+	jmp	3b
+
+5:
 	mov	$end_delim, %rdi
 	call	log
 
