@@ -58,6 +58,9 @@ malformed:
 null:
 	.ascii	"NULL\0"
 
+length_label:
+	.ascii	"Length => \0"
+
 front_label:
 	.ascii	"## Front ##\n\0"
 
@@ -638,6 +641,21 @@ DualArrayDeque_log:
 # Done printing values, still need to print the end delimiter
 2:
 	mov	$end_delim, %rdi
+	call	log
+
+	mov	$length_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	call	DualArrayDeque_length
+
+	mov	%rax, %rdi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
 	call	log
 
 	mov	$front_label, %rdi

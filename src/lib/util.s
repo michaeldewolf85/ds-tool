@@ -69,10 +69,14 @@ itoa:
 	cmp	$0, %eax
 	jne	1b
 
-	# Move bytes into buffer
-	mov	$int_buffer, %rdi	# Destination
-	mov	%rsp, %rsi	# Source
-	rep	movsb
+	xor	%rdx, %rdx
+2:
+	pop	%rax
+	mov	$int_buffer, %r8
+	mov	%al, (%r8, %rdx)
+	inc	%rdx
+	cmp	%rcx, %rdx
+	jl	2b
 
 	mov	$int_buffer, %rax 
 
