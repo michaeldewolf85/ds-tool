@@ -64,6 +64,18 @@ malformed:
 null:
 	.ascii	"NULL\0"
 
+length:
+	.ascii	"Length => \0"
+
+size:
+	.ascii	"Size   => \0"
+
+index:
+	.ascii	"Index  => \0"
+
+raw:
+	.ascii	"Raw    => \0"
+
 .section .bss
 
 # ArrayDeque singleton
@@ -454,10 +466,10 @@ ArrayDeque_remove:
 # All moves are complete, now we only need to decrement the length and check if a resize is needed
 4:
 	decl	ArrayDeque.length(%rdi)
-	mov	ArrayDeque.length(%rdi), %rax
+	mov	ArrayDeque.length(%rdi), %eax
 	imul	$3, %rax
 	cmp	ArrayDeque.size(%rdi), %rax
-	jge	6f
+	jl	6f
 
 5:
 	pop	%rax
@@ -525,6 +537,88 @@ ArrayDeque_log:
 	call	log
 
 	mov	$newline, %rdi
+	call	log
+
+	mov	$length, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ArrayDeque.length(%rdi), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$size, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ArrayDeque.size(%rdi), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$index, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ArrayDeque.index(%rdi), %edi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$raw, %rdi
+	call	log
+
+	mov	$start_delim, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ArrayDeque.size(%rdi), %r8
+	sub	ArrayDeque.index(%rdi), %r8d
+	movq	$0, CTR(%rbp)
+
+# Print loop for "raw"
+3:
+	mov	CTR(%rbp), %rcx
+	mov	THIS(%rbp), %rdi
+	mov	ArrayDeque.size(%rdi), %rax
+	sub	ArrayDeque.index(%rdi), %eax
+	add	%rcx, %rax
+	xor	%rdx, %rdx
+	divq	ArrayDeque.size(%rdi)
+	cmp	ArrayDeque.length(%rdi), %edx
+	jge	4f
+
+	mov	ArrayDeque.data(%rdi), %rax
+
+	mov	(%rax, %rcx, 1<<3), %rdi
+	call	log
+
+4:
+	incq	CTR(%rbp)
+	mov	CTR(%rbp), %rcx
+	mov	THIS(%rbp), %rdi
+	cmp	ArrayDeque.size(%rdi), %rcx
+	jge	5f
+
+	mov	$mid_delim, %rdi
+	call	log
+	jmp	3b
+	
+5:
+	mov	$end_delim, %rdi
 	call	log
 
 	mov	THIS(%rbp), %rdi
