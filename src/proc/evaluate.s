@@ -15,6 +15,7 @@ commands:
 	.quad	arraydeque
 	.quad	dualarraydeque
 	.quad	rootisharraystack
+	.quad	sllist
 	.quad	0	# Sentinel
 
 handlers:
@@ -25,6 +26,7 @@ handlers:
 	.quad	arraydeque_handler
 	.quad	dualarraydeque_handler
 	.quad	rootisharraystack_handler
+	.quad	sllist_handler
 	.quad	error_handler
 
 .section .text
