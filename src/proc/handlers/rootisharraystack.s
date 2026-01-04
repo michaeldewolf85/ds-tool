@@ -60,6 +60,9 @@ null:
 length_label:
 	.ascii	"Length => \0"
 
+blocks_label:
+	.ascii	"Blocks => \0"
+
 .section .bss
 
 this:
@@ -540,6 +543,22 @@ RootishArrayStack_log:
 	call	log
 
 	mov	LENGTH(%rbp), %rdi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$blocks_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	RootishArrayStack.blocks(%rdi), %rdi
+	call	ArrayStack_length
+
+	mov	%rax, %rdi
 	call	itoa
 
 	mov	%rax, %rdi
