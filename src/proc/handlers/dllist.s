@@ -1,6 +1,7 @@
 # proc/handlers/dllist.s - Handler for DLList
 
 .include	"common.inc"
+.include	"structs.inc"
 
 .globl	dllist, dllist_handler
 
@@ -28,23 +29,51 @@ DLListItem.prev:
 dllist:
 	.ascii	"dllist\0"
 
-# TODO REMOVE!!
-item1:
-	.ascii	"Apples\0"
-item2:
-	.ascii	"Oranges\0"
-item3:
-	.ascii	"Bananas\0"
-item4:
-	.ascii	"Strawberries\0"
-item5:
-	.ascii	"Blueberries\0"
-item6:
-	.ascii	"Melons\0"
-item7:
-	.ascii	"Blackberries\0"
-item8:
-	.ascii	"Clementines\0"
+get:
+	.ascii	"get\0"
+set:
+	.ascii	"set\0"
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+
+commands:
+	.quad	get
+	.quad	set
+	.quad	add
+	.quad	remove
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	DLList_get
+	.quad	DLList_set
+	.quad	DLList_add
+	.quad	DLList_remove
+
+malformed:
+	.ascii	"Malformed command\n\0"
+
+start_delim:
+	.ascii	"{ \0"
+
+mid_delim:
+	.ascii	" <-> \0"
+
+end_delim:
+	.ascii	" }\n\0"
+
+newline:
+	.ascii	"\n\0"
+
+length_label:
+	.ascii	"Length => \0"
+
+raw_label:
+	.ascii	"Raw    => \0"
+
+null:
+	.ascii	"NULL\0"
 
 .section .bss
 
@@ -63,47 +92,62 @@ dllist_handler:
 	je	new
 
 handler:
+	mov	Input.argv + 8(%rbx), %rdi	# Second argument is the operation
+	xor	%r12, %r12			# Index of found operation
+
+	cmpq	$1, Input.argc(%rbx)		# If only one argument, print the DLList ... 
+	je	4f
+
+	cmpq	$3, Input.argc(%rbx)		# Otherwise, we must have 3 arguments to be valid
+	jl	error
+
+check:
+	mov	commands(, %r12, 8), %rsi
+	cmp	$0, %rsi			# Check for the sentinel, if we match here the 
+	je	error				# command was not found
+
+	call	strcmp
+	cmp	$0, %rax
+	je	match
+
+	inc	%r12
+	jmp	check
+
+match:
+	mov	Input.argv + 16(%rbx), %rdi	# Third argument is always an index
+	call	atoi
+	cmp	$0, %rax
+	jl	error
+
+	mov	%rax, %rsi
+	mov	Input.argv + 24(%rbx), %rdx	# Third argument may be a string pointer
+
+	mov	this, %rdi			# Ensure instance is in place
+	call	*handlers(, %r12, 8)		# Call the handler
+
+	mov	$null, %r12
+	mov	%rax, %rdi
+	cmp	$0, %rax
+	cmove	%r12, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+4:
 	mov	this, %rdi
+	call	DLList_log
 
-	mov	$0, %rsi
-	mov	$item1, %rdx
-	call	DLList_add
-
-	mov	$1, %rsi
-	mov	$item2, %rdx
-	call	DLList_add
-
-	mov	$2, %rsi
-	mov	$item3, %rdx
-	call	DLList_add
-
-	mov	$0, %rsi
-	mov	$item4, %rdx
-	call	DLList_add
-
-	mov	$0, %rsi
-	call	DLList_get
-
-	mov	$1, %rsi
-	call	DLList_get
-
-	mov	$2, %rsi
-	call	DLList_get
-
-	mov	$3, %rsi
-	call	DLList_get
-
-	mov	$0, %rsi
-	mov	$item2, %rdx
-	call	DLList_set
-
-	mov	$0, %rsi
-	call	DLList_get
-
-	mov	$0, %rsi
-	call	DLList_remove
-
+5:
 	ret
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp 5b
 
 # Intialization
 new:
@@ -149,8 +193,17 @@ DLList_ctor:
 # @param	%rsi	The index to get
 # @return	%rax	Pointer to the element
 DLList_get:
+	# Validates the passed index
+	cmp	%rsi, DLList.len(%rdi)
+	jc	1f				# If there's carry it's either too big or negative
+	jz	1f				# Also need to check for equals
+
 	call	get_node
 	mov	DLListItem.val(%rax), %rax
+	ret
+# Error index
+1:
+	xor	%rax, %rax
 	ret
 
 # @function	DLList_set
@@ -161,6 +214,11 @@ DLList_get:
 # @return	%rax	Pointer to the previous value
 .equ	VAL, -8
 DLList_set:
+	# Validates the passed index
+	cmp	%rsi, DLList.len(%rdi)
+	jc	1f				# If there's carry it's either too big or negative
+	jz	1f				# Also need to check for equals
+
 	push	%rdx				# Preserve new value
 
 	call	get_node
@@ -171,6 +229,10 @@ DLList_set:
 	mov	%rdx, DLListItem.val(%rax)
 
 	pop	%rax
+	ret
+# Error index
+1:
+	xor	%rax, %rax
 	ret
 
 # @function	DLList_add
@@ -184,6 +246,10 @@ DLList_set:
 .equ	VAL, -24
 .equ	AFTER, -32	# Adjacent node
 DLList_add:
+	# Validates the passed index
+	cmp	%rsi, DLList.len(%rdi)
+	jc	1f				# If there's carry it's either too big or negative
+
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -219,6 +285,10 @@ DLList_add:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+# Error index
+1:
+	xor	%rax, %rax
+	ret
 
 # @function	DLList_remove
 # @description	Remove the element at the specified index
@@ -226,6 +296,13 @@ DLList_add:
 # @param	%rsi	Index to remove
 # @return	%rax	Pointer to the removed element
 DLList_remove:
+	# Validates the passed index
+	cmp	%rsi, DLList.len(%rdi)
+	jc	1f				# If there's carry it's either too big or negative
+	jz	1f				# Also need to check for equals
+
+	push	%rdi				# Preserve "this" pointer
+
 	call	get_node
 
 	# Get next/prev of removed node
@@ -247,6 +324,76 @@ DLList_remove:
 	call	free
 
 	pop	%rax
+	pop	%rdi
+	ret
+# Error index
+1:
+	xor	%rax, %rax
+	ret
+
+# @function	DLList_log
+# @description	Logs the innards of a DLList
+# @param	%rdi	Pointer to the DLList
+# @return	void
+.equ	THIS, -8
+.equ	LEN, -16
+.equ	CUR, -24
+DLList_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$24, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	DLList.len(%rdi), %rax
+	mov	%rax, LEN(%rbp)
+	mov	DLList.head(%rdi), %rax
+	mov	%rax, CUR(%rbp)
+
+	mov	$length_label, %rdi
+	call	log
+
+	mov	LEN(%rbp), %rdi
+	call	itoa
+
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$raw_label, %rdi
+	call	log
+
+	mov	$start_delim, %rdi
+	call	log
+
+	cmpq	$0, LEN(%rbp)
+	je	2f
+
+1:
+	mov	CUR(%rbp), %rax
+	mov	DLListItem.next(%rax), %rax
+	mov	%rax, CUR(%rbp)
+
+	mov	DLListItem.val(%rax), %rdi
+	call	log
+
+	decq	LEN(%rbp)
+	cmpq	$0, LEN(%rbp)
+	je	2f
+
+	mov	$mid_delim, %rdi
+	call	log
+	jmp	1b
+
+2:
+	mov	$end_delim, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	get_node
