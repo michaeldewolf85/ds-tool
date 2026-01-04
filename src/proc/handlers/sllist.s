@@ -227,7 +227,13 @@ SLList_pop:
 	cmovg	SLList.tail(%rdi), %rcx		# Otherwise we just set it to what it was
 	mov	%rcx, SLList.tail(%rdi)
 
-	mov	SLListItem.val(%rax), %rax	# Set return value
+	pushq	SLListItem.val(%rax)		# Preserve return value
+
+	# Free the memory
+	mov	%rax, %rdi
+	call	free
+
+	pop	%rax				# Set return value to preserved
 1:
 	ret
 
