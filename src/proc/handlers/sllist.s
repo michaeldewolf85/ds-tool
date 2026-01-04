@@ -70,6 +70,9 @@ newline:
 length_label:
 	.ascii	"Length => \0"
 
+raw_label:
+	.ascii	"Raw    => \0"
+
 null:
 	.ascii	"NULL\0"
 
@@ -320,6 +323,9 @@ SLList_log:
 	call	log
 
 	mov	$newline, %rdi
+	call	log
+
+	mov	$raw_label, %rdi
 	call	log
 
 	mov	$start_delim, %rdi
