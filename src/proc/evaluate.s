@@ -17,6 +17,7 @@ commands:
 	.quad	rootisharraystack
 	.quad	sllist
 	.quad	dllist
+	.quad	selist
 	.quad	0	# Sentinel
 
 handlers:
@@ -29,6 +30,7 @@ handlers:
 	.quad	rootisharraystack_handler
 	.quad	sllist_handler
 	.quad	dllist_handler
+	.quad	selist_handler
 	.quad	error_handler
 
 .section .text
