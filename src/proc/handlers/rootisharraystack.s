@@ -63,6 +63,23 @@ length_label:
 blocks_label:
 	.ascii	"Blocks => \0"
 
+raw_label:
+	.ascii	"Raw => \0"
+
+rs_delim:
+	.ascii	"{\0"
+
+re_delim:
+	.ascii	"}\n\0"
+
+ree_delim:
+	.ascii	"]\n\0"
+
+spacer:
+	.ascii	"  \0"
+
+divider:
+	.ascii	" => \0"
 .section .bss
 
 this:
@@ -500,11 +517,13 @@ shrink:
 .equ	THIS, -8
 .equ	LENGTH, -16
 .equ	CTR, -24
+.equ	ICTR, -32
+.equ	ARGS, -40
 RootishArrayStack_log:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$24, %rsp
+	sub	$40, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	RootishArrayStack.length(%rdi), %eax
 	mov	%rax, LENGTH(%rbp)
@@ -567,11 +586,93 @@ RootishArrayStack_log:
 	mov	$newline, %rdi
 	call	log
 
+	mov	$raw_label, %rdi
+	call	log
+
+	mov	$rs_delim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	movq	$0, CTR(%rbp)
+	movq	$0, ARGS(%rbp)
+	jmp	4f
+
+1:
+	mov	$spacer, %rdi
+	call	log
+
+	mov	CTR(%rbp), %rdi
+	inc	%rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$divider, %rdi
+	call	log
+
+	mov	$start_delim, %rdi
+	call	log
+
+	movq	$0, ICTR(%rbp)
+	jmp	3f
+
+2:
+	mov	THIS(%rbp), %rdi
+	mov	RootishArrayStack.length(%rdi), %rdi
+	cmp	%rdi, ARGS(%rbp)
+	jge	5f
+
+	mov	THIS(%rbp), %rdi
+	mov	RootishArrayStack.blocks(%rdi), %rdi
+	mov	CTR(%rbp), %rsi
+	call	ArrayStack_get
+
+	incq	ARGS(%rbp)
+
+	mov	ICTR(%rbp), %rcx
+	mov	(%rax, %rcx, 1<<3), %rdi
+	call	log
+
+
+5:
+	incq	ICTR(%rbp)
+	mov	ICTR(%rbp), %rcx
+	dec	%rcx
+	cmp	CTR(%rbp), %rcx
+	jge	3f
+
+	mov	$mid_delim, %rdi
+	call	log
+
+3:
+	mov	ICTR(%rbp), %rcx
+	dec	%rcx
+	cmp	CTR(%rbp), %rcx
+	jl	2b
+
+	mov	$ree_delim, %rdi
+	call	log
+
+	incq	CTR(%rbp)
+
+4:
+	mov	THIS(%rbp), %rdi
+	mov	RootishArrayStack.blocks(%rdi), %rdi
+	call	ArrayStack_length
+	cmp	%rax, CTR(%rbp)
+	jl	1b
+	
+	mov	$re_delim, %rdi
+	call	log
+
 	mov	THIS(%rbp), %rdi
 
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+
 # @function	i2b
 # @description	Determine which block an index belongs to
 # @param	%rdi	Any index
