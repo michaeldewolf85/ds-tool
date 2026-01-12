@@ -112,6 +112,7 @@ compare:
 	jmp	compare
 
 end:
+	movsbq	%al, %rax
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
