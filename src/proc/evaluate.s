@@ -21,6 +21,7 @@ evaluate_commands:
 	.quad	sllist
 	.quad	dllist
 	.quad	selist
+	.quad	skiplistsset
 	.quad	0	# Sentinel
 
 handlers:
@@ -35,6 +36,7 @@ handlers:
 	.quad	sllist_handler
 	.quad	dllist_handler
 	.quad	selist_handler
+	.quad	skiplistsset_handler
 	.quad	error_handler
 
 .section .text

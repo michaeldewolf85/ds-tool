@@ -4,3 +4,7 @@
 .equ	NULL, 0x0
 .equ	LF, 0xA
 .equ	SPACE, 0x20
+
+# Booleans
+.equ	TRUE, 1
+.equ	FALSE, 0
