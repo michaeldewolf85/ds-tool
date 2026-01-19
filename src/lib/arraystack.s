@@ -1,7 +1,7 @@
 # lib/arraystack.s - ArrayStack
 
 .globl	ArrayStack_ctor, ArrayStack_length, ArrayStack_get, ArrayStack_set, ArrayStack_add, 
-.globl	ArrayStack_remove, ArrayStack_log
+.globl	ArrayStack_remove, ArrayStack_log, ArrayStack_dtor
 
 # ArrayStack struct
 	.struct	0
@@ -46,7 +46,6 @@ size:
 # @public
 # @description	Initializes an ArrayStack
 # @return	%rax	A pointer to the ArrayStack
-
 .type	ArrayStack_ctor, @function
 ArrayStack_ctor:
 	push	%rbx
@@ -69,6 +68,20 @@ ArrayStack_ctor:
 	mov	%rbx, %rax
 
 	pop	%rbx
+	ret
+
+# @function	ArrayStack_dtor
+# @description	Destructor for the ArrayStack
+# @param	%rdi	Pointer to the ArrayStack
+# @return	void
+.type	ArrayStack_dtor, @function
+ArrayStack_dtor:
+	push	%rdi
+	mov	ArrayStack.data(%rdi), %rdi
+	call	free
+
+	pop	%rdi
+	call	free
 	ret
 
 # @function	ArrayStack_length
