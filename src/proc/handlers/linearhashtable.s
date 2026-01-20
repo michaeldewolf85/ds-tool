@@ -10,6 +10,24 @@
 linearhashtable:
 	.ascii	"linearhashtable\0"
 
+# TODO REMOVE!!
+item1:
+	.ascii	"Bananas\0"
+item2:
+	.ascii	"Strawberries\0"
+item3:
+	.ascii	"Apples\0"
+item4:
+	.ascii	"Blueberries\0"
+item5:
+	.ascii	"Cantaloupe\0"
+item6:
+	.ascii	"Blackberries\0"
+item7:
+	.ascii	"Dragonfruit\0"
+item8:
+	.ascii	"Oranges\0"
+
 .section .bss
 
 this:
@@ -30,42 +48,41 @@ linearhashtable_handler:
 
 1:
 	mov	this, %rdi
-	mov	$123, %rsi
+	mov	$item1, %rsi
 	call	LinearHashTable_find
 
-	mov	$123456, %rsi
+	mov	$item1, %rsi
 	call	LinearHashTable_add
 
-	mov	$234567, %rsi
+	mov	$item2, %rsi
 	call	LinearHashTable_add
 
-	mov	$345678, %rsi
+	mov	$item3, %rsi
 	call	LinearHashTable_add
 
-	mov	$456789, %rsi
+	mov	$item4, %rsi
 	call	LinearHashTable_add
 
-	mov	$123456, %rsi
+	mov	$item2, %rsi
 	call	LinearHashTable_find
 
-	mov	$234567, %rsi
+	mov	$item3, %rsi
 	call	LinearHashTable_find
 
-	mov	$345678, %rsi
+	mov	$item4, %rsi
 	call	LinearHashTable_find
 
-	mov	$456789, %rsi
+	mov	$item5, %rsi
 	call	LinearHashTable_find
 
-	mov	$456, %rsi
+	mov	$item6, %rsi
 	call	LinearHashTable_find
 
-	mov	$234567, %rsi
+	mov	$item2, %rsi
 	call	LinearHashTable_remove
 
-	mov	$345678, %rsi
+	mov	$item3, %rsi
 	call	LinearHashTable_remove
-
 
 2:
 	ret

@@ -43,7 +43,7 @@ chainedhashtable_handler:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	cmp	$NULL, this
+	cmpq	$NULL, this
 	jne	1f
 
 	call	ChainedHashTable_ctor
@@ -52,28 +52,28 @@ chainedhashtable_handler:
 1:
 	mov	this, %rdi
 
-	mov	$123, %rsi
+	mov	$item1, %rsi
 	call	ChainedHashTable_add
 
-	mov	$123, %rsi
+	mov	$item1, %rsi
 	call	ChainedHashTable_find
 
-	mov	$456, %rsi
+	mov	$item2, %rsi
 	call	ChainedHashTable_add
 
-	mov	$789, %rsi
+	mov	$item3, %rsi
 	call	ChainedHashTable_add
 
-	mov	$123456, %rsi
+	mov	$item4, %rsi
 	call	ChainedHashTable_add
 
-	mov	$234567, %rsi
+	mov	$item5, %rsi
 	call	ChainedHashTable_add
 
-	mov	$345678, %rsi
+	mov	$item6, %rsi
 	call	ChainedHashTable_add
 
-	mov	$123, %rsi
+	mov	$item1, %rsi
 	call	ChainedHashTable_remove
 
 	mov	%rbp, %rsp

@@ -154,6 +154,7 @@ ChainedHashTable_add:
 	call	resize
 
 1:
+	mov	VAL(%rbp), %rsi
 	call	hash
 	mov	ChainedHashTable.tab(%rdi), %rdi
 	mov	(%rdi, %rax, 1<<3), %rdi
@@ -239,9 +240,20 @@ ChainedHashTable_remove:
 # @param	%rdi	Pointer to the ChainedHashTable
 # @param	%rsi	Value to hash
 # @return	%rax	The hashed index into the backing array
+.equ	THIS, -8
 hash:
-	mov	ChainedHashTable.zee(%rdi), %rax
-	imul	%rsi, %rax
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$8, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	mov	%rsi, %rdi
+	call	hash_code
+
+	mov	THIS(%rbp), %rdi
+	mov	ChainedHashTable.zee(%rdi), %rcx
+	imul	%rcx, %rax
 	mov	$1, %rcx
 	shl	$INT_SIZE, %rcx
 	xor	%rdx, %rdx
@@ -251,6 +263,9 @@ hash:
 	mov	$INT_SIZE, %rcx
 	sub	ChainedHashTable.dim(%rdi), %ecx
 	shr	%cl, %rax
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	resize
@@ -324,7 +339,7 @@ resize:
 	mov	CURR(%rbp), %rdi
 	mov	JCTR(%rbp), %rsi
 	call	ArrayStack_get
-	mov	%rax, %r8
+	mov	%rax, %r11
 
 	mov	THIS(%rbp), %rdi
 	mov	%rax, %rsi
@@ -335,7 +350,7 @@ resize:
 	mov	(%rcx, %rax, 1<<3), %rdi
 	call	ArrayStack_length
 	mov	%rax, %rsi
-	mov	%r8, %rdx
+	mov	%r11, %rdx
 	call	ArrayStack_add
 
 5:

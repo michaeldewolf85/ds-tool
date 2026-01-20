@@ -3,7 +3,17 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	atoi, itoa, strcmp
+.globl	atoi, hash_code, itoa, strcmp
+
+.section .rodata
+
+# Constants for hashing
+p:
+	.long	1<<32 - 5	# Large prime number
+z:
+	.long	0xde07037a	# Random 32-bit number
+z2:
+	.long	0x37cf6d13	# Random ODD 32-bit number
 
 .section .bss
 
@@ -115,4 +125,54 @@ end:
 	movsbq	%al, %rax
 	mov	%rbp, %rsp
 	pop	%rbp
+	ret
+
+# @function	hash_code
+# @description	Hashes a (null-terminated) string into a 32-bit number
+# @param	%rdi	Pointer to the (null-terminated) string
+# @return	%rax	The hash code
+.type	hash_code, @function
+hash_code:
+	xor	%rcx, %rcx	# Loop counter
+	xor	%r8, %r8	# s = 0
+	mov	$1, %r9		# zi = 1
+
+1:
+	movzbq	(%rdi, %rcx), %rax
+	cmp	$NULL, %rax
+	je	2f
+
+	# Calculate xi
+	imul	z2, %eax
+	mov	$1<<32, %r10
+	xor	%rdx, %rdx
+	div	%r10
+	shr	$1, %rdx
+
+	# Calculate s
+	mov	%rdx, %rax
+	imul	%r9, %rax
+	add	%r8, %rax
+	xor	%rdx, %rdx
+	divl	p
+	mov	%rdx, %r8
+
+	# Calculate zi
+	mov	%r9, %rax
+	imul	z, %eax
+	xor	%rdx, %rdx
+	divl	p
+	mov	%rdx, %r9
+
+	inc	%rcx
+	jmp	1b
+2:
+	mov	p, %eax
+	sub	$1, %rax
+	imul	%r9, %rax
+	add	%r8, %rax
+	xor	%rdx, %rdx
+	divl	p
+
+	mov	%rdx, %rax
 	ret
