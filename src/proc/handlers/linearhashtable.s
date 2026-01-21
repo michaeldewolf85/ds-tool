@@ -1,6 +1,7 @@
 # proc/handlers/linearhashtable.s - Handler for the "linearhashtable" command
 
 .include	"common.inc"
+.include	"structs.inc"
 
 .globl	linearhashtable, linearhashtable_handler
 
@@ -10,23 +11,32 @@
 linearhashtable:
 	.ascii	"linearhashtable\0"
 
-# TODO REMOVE!!
-item1:
-	.ascii	"Bananas\0"
-item2:
-	.ascii	"Strawberries\0"
-item3:
-	.ascii	"Apples\0"
-item4:
-	.ascii	"Blueberries\0"
-item5:
-	.ascii	"Cantaloupe\0"
-item6:
-	.ascii	"Blackberries\0"
-item7:
-	.ascii	"Dragonfruit\0"
-item8:
-	.ascii	"Oranges\0"
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+find:
+	.ascii	"find\0"
+
+commands:
+	.quad	add
+	.quad	remove
+	.quad	find
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	LinearHashTable_add
+	.quad	LinearHashTable_remove
+	.quad	LinearHashTable_find
+
+newline:
+	.ascii	"\n\0"
+
+null:
+	.ascii	"NULL\0"
+
+malformed:
+	.ascii	"Malformed command\n\0"
 
 .section .bss
 
@@ -38,8 +48,17 @@ this:
 # @function	linearhashtable_handler
 # @description	Handler for the "linearhashtable" command
 # @return	void
+.equ	INPUT, -8
+.equ	COUNTER, -16
 .type	linearhashtable_handler, @function
 linearhashtable_handler:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, INPUT(%rbp)
+	movq	$0, COUNTER(%rbp)
+
 	cmpq	$NULL, this
 	jne	1f
 
@@ -48,41 +67,57 @@ linearhashtable_handler:
 
 1:
 	mov	this, %rdi
-	mov	$item1, %rsi
-	call	LinearHashTable_find
+	
+	mov	INPUT(%rbp), %rax		# Input
+	cmpq	$1, Input.argc(%rax)		# If only 1 argument, print the ArrayQueue
+	je	3f
 
-	mov	$item1, %rsi
-	call	LinearHashTable_add
+	mov	Input.argv + 8(%rax), %rdi	# Current command in %rdi
+check:
+	mov	COUNTER(%rbp), %rcx
+	mov	commands(, %rcx, 1<<3), %rsi	# Current command being examined
+	cmp	$0, %rsi			# Check for NULL sentinel which indicates no ...
+	je	error				# matching command was found
 
-	mov	$item2, %rsi
-	call	LinearHashTable_add
+	call	strcmp
+	cmp	$0, %rax
+	je	match
 
-	mov	$item3, %rsi
-	call	LinearHashTable_add
+	incq	COUNTER(%rbp)
+	jmp	check
 
-	mov	$item4, %rsi
-	call	LinearHashTable_add
+match:
+	mov	this, %rdi
 
-	mov	$item2, %rsi
-	call	LinearHashTable_find
+	mov	INPUT(%rbp), %rax		# Only "add" command takes an argument but argv ...
+	mov	Input.argv + 16(%rax), %rsi	# passes zeroes in all the other slots
 
-	mov	$item3, %rsi
-	call	LinearHashTable_find
+	mov	COUNTER(%rbp), %rcx
+	call	*handlers(, %rcx, 1<<3)
 
-	mov	$item4, %rsi
-	call	LinearHashTable_find
+	mov	$null, %rcx
+	cmp	$0, %rax
+	cmove	%rcx, %rax
 
-	mov	$item5, %rsi
-	call	LinearHashTable_find
+	mov	%rax, %rdi
+	call	log
 
-	mov	$item6, %rsi
-	call	LinearHashTable_find
+	mov	$newline, %rdi
+	call	log
 
-	mov	$item2, %rsi
-	call	LinearHashTable_remove
+3:
+	mov	$newline, %rdi
+	call	log
 
-	mov	$item3, %rsi
-	call	LinearHashTable_remove
+	mov	this, %rdi
+	call	LinearHashTable_log
 
-2:
+4:
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp	4b

@@ -3,6 +3,7 @@
 .include	"common.inc"
 
 .globl	ChainedHashTable_ctor, ChainedHashTable_add, ChainedHashTable_find, ChainedHashTable_remove
+.globl	ChainedHashTable_log
 
 # ChainedHashTable
 	.struct	0
@@ -18,6 +19,31 @@ ChainedHashTable.len:
 
 .equ	START_DIMENSION, 1
 .equ	INT_SIZE, 1<<5
+
+.section .rodata
+
+dim_label:
+	.ascii	"Dimension => \0"
+len_label:
+	.ascii	"Length    => \0"
+zee_label:
+	.ascii	"z         => \0"
+siz_label:
+	.ascii	"Size      => \0"
+raw_label:
+	.ascii	"Raw       => \0"
+spacer:
+	.ascii	"  \0"
+label:
+	.ascii	"=> \0"
+sdelim:
+	.ascii	"[ \0"
+mdelim:
+	.ascii	", \0"
+edelim:
+	.ascii	" ]\0"
+newline:
+	.byte	LF, NULL
 
 .section .text
 
@@ -83,28 +109,35 @@ ChainedHashTable_ctor:
 .equ	THIS, -8
 .equ	VAL, -16
 .equ	KEY, -24
+.equ	CUR, -32
 .type	ChainedHashTable_find, @function
 ChainedHashTable_find:
 	push	%rbp
 	mov	%rsp, %rbp
 
 	# Local variables
-	sub	$24, %rsp
+	sub	$32, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, VAL(%rbp)
 
 	call	hash
 	mov	ChainedHashTable.tab(%rdi), %rdi
 	mov	(%rdi, %rax, 1<<3), %rdi
+	mov	%rdi, CUR(%rbp)
 	call	ArrayStack_length
 	mov	%rax, KEY(%rbp)
 	jmp	2f
 
 1:
 	decq	KEY(%rbp)
+	mov	CUR(%rbp), %rdi
 	mov	KEY(%rbp), %rsi
 	call	ArrayStack_get
-	cmp	VAL(%rbp), %rax
+	mov	VAL(%rbp), %rdi
+	mov	%rax, %rsi
+	call	strcmp
+	cmp	$0, %rax
+	mov	%rsi, %rax
 	je	3f
 
 2:
@@ -179,27 +212,34 @@ ChainedHashTable_add:
 .equ	THIS, -8
 .equ	VAL, -16
 .equ	KEY, -24
+.equ	CUR, -32
 .type	ChainedHashTable_remove, @function
 ChainedHashTable_remove:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$24, %rsp
+	sub	$32, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, VAL(%rbp)
 
 	call	hash
 	mov	ChainedHashTable.tab(%rdi), %rdi
 	mov	(%rdi, %rax, 1<<3), %rdi
+	mov	%rdi, CUR(%rbp)
 	call	ArrayStack_length
 	mov	%rax, KEY(%rbp)
 	jmp	2f
 
 1:
 	decq	KEY(%rbp)
+	mov	CUR(%rbp), %rdi
 	mov	KEY(%rbp), %rsi
 	call	ArrayStack_get
-	cmp	VAL(%rbp), %rax
+
+	mov	VAL(%rbp), %rdi
+	mov	%rax, %rsi
+	call	strcmp
+	cmp	$0, %rax
 	je	3f
 
 2:
@@ -209,10 +249,11 @@ ChainedHashTable_remove:
 	# Item not found
 	mov	THIS(%rbp), %rdi
 	xor	%rax, %rax
-	jmp	4f
+	jmp	5f
 
 3:
 	# Remove the element
+	mov	CUR(%rbp), %rdi
 	mov	KEY(%rbp), %rsi
 	call	ArrayStack_remove
 	
@@ -231,6 +272,161 @@ ChainedHashTable_remove:
 	call	resize
 
 4:
+	mov	VAL(%rbp), %rax
+
+5:
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	ChainedHashTable_log
+# @description	Logs the innards of a ChainedHashTable
+# @param	%rdi	Pointer to the ChainedHashTable
+# @return	void
+.equ	THIS, -8
+.equ	SIZE, -16
+.equ	ICTR, -24
+.equ	CURR, -32
+.equ	JCTR, -40
+.equ	JLIM, -48
+.type	ChainedHashTable_log, @function
+ChainedHashTable_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Local variables
+	sub	$48, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	# Calculate size
+	mov	ChainedHashTable.dim(%rdi), %ecx
+	mov	$1, %rax
+	shl	%cl, %rax
+	mov	%rax, SIZE(%rbp)
+
+	mov	$len_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ChainedHashTable.len(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$siz_label, %rdi
+	call	log
+
+	mov	SIZE(%rbp), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$dim_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ChainedHashTable.dim(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$zee_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ChainedHashTable.zee(%rdi), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$raw_label, %rdi
+	call	log
+
+	mov	$sdelim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	xor	%rcx, %rcx
+	mov	%rcx, ICTR(%rbp)
+	jmp	5f
+
+1:
+	mov	$spacer, %rdi
+	call	log
+
+	mov	ICTR(%rbp), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$label, %rdi
+	call	log
+
+	mov	$sdelim, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	ICTR(%rbp), %rcx
+	mov	ChainedHashTable.tab(%rdi), %rdi
+	mov	(%rdi, %rcx, 1<<3), %rdi
+	mov	%rdi, CURR(%rbp)
+	call	ArrayStack_length
+	mov	%rax, JLIM(%rbp)
+	movq	$0, JCTR(%rbp)
+	jmp	4f
+
+3:
+	mov	CURR(%rbp), %rdi
+	mov	JCTR(%rbp), %rsi
+	call	ArrayStack_get
+	mov	%rax, %rdi
+	call	log
+
+	incq	JCTR(%rbp)
+	mov	JCTR(%rbp), %rsi
+	cmp	JLIM(%rbp), %rsi
+	je	4f
+
+	mov	$mdelim, %rdi
+	call	log
+4:
+	mov	JCTR(%rbp), %rsi
+	cmpq	JLIM(%rbp), %rsi
+	jl	3b
+
+	mov	$edelim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	incq	ICTR(%rbp)
+5:
+	mov	ICTR(%rbp), %rcx
+	cmp	SIZE(%rbp), %rcx
+	jl	1b
+
+	mov	$edelim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret

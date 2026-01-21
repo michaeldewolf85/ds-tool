@@ -3,6 +3,7 @@
 .include	"common.inc"
 
 .globl	LinearHashTable_ctor, LinearHashTable_find, LinearHashTable_add, LinearHashTable_remove
+.globl	LinearHashTable_log
 
 # LinearHashTable
 	.struct	0
@@ -23,6 +24,35 @@ LinearHashTable.dim:
 
 .equ	NIL, 0
 .equ	DEL, -1
+
+.section .rodata
+
+dim_label:
+	.ascii	"Dimension => \0"
+len_label:
+	.ascii	"Length    => \0"
+use_label:
+	.ascii	"Used      => \0"
+siz_label:
+	.ascii	"Size      => \0"
+raw_label:
+	.ascii	"Raw       => \0"
+spacer:
+	.ascii	"  \0"
+label:
+	.ascii	"=> \0"
+sdelim:
+	.ascii	"[ \0"
+mdelim:
+	.ascii	", \0"
+edelim:
+	.ascii	" ]\0"
+newline:
+	.byte	LF, NULL
+nil:
+	.ascii	"NIL\0"
+del:
+	.ascii	"DEL\0"
 
 .section .bss
 
@@ -285,6 +315,124 @@ LinearHashTable_remove:
 	pop	%rbp
 	ret
 
+# @function	LinearHashTable_log
+# @description	Logs the innards of a LinearHashTable
+# @param	%rdi	Pointer to the LinearHashTable
+# @return	void
+.equ	THIS, -8
+.equ	ICTR, -16
+.type	LinearHashTable_log, @function
+LinearHashTable_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	mov	$len_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.len(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$siz_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.siz(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$use_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.use(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$dim_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.dim(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$raw_label, %rdi
+	call	log
+
+	mov	$sdelim, %rdi
+	call	log
+
+	movq	$0, ICTR(%rbp)
+	jmp	6f
+
+1:
+	mov	LinearHashTable.data(%rdi), %rax
+	mov	ICTR(%rbp), %rcx
+	mov	(%rax, %rcx, 1<<3), %rdi
+
+	cmp	$NIL, %rdi
+	jne	3f
+
+	mov	$nil, %rdi
+	call	log
+	jmp	5f
+
+3:
+	cmp	$DEL, %rdi
+	jne	4f
+
+	mov	$del, %rdi
+	call	log
+	jmp	5f
+
+4:
+	call	log
+5:
+	incq	ICTR(%rbp)
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.siz(%rdi), %rcx
+	cmp	%rcx, ICTR(%rbp)
+	je	6f
+
+	mov	$mdelim, %rdi
+	call	log
+
+6:
+	mov	THIS(%rbp), %rdi
+	mov	LinearHashTable.siz(%rdi), %rcx
+	cmp	%rcx, ICTR(%rbp)
+	jl	1b
+
+	mov	$edelim, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
 # @function	resize
 # @description	File private function that performs a resize of the backing table, aiming for a
 #		dimension value that produces at least 3x the length
