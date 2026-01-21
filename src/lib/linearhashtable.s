@@ -91,14 +91,24 @@ LinearHashTable_ctor:
 # @param	%rdi	Pointer to the LinearHashTable instance
 # @param	%rsi	The element to find
 # @return	%rax	The found element on success, NULL on failure
+.equ	THIS, -8
+.equ	CTR, -16
 .type	LinearHashTable_find, @function
 LinearHashTable_find:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Local variables
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
 	call	hash
-	mov	%rax, %rcx	# Save hash code in count register and ...
+	mov	%rax, CTR(%rbp)
 
 	mov	LinearHashTable.data(%rdi), %r8
 1:
 	# Find loop
+	mov	CTR(%rbp), %rcx
 	mov	(%r8, %rcx, 1<<3), %rax
 	cmp	$NIL, %rax
 	je	3f
@@ -106,24 +116,32 @@ LinearHashTable_find:
 	cmp	$DEL, %rax
 	je	2f
 
-	cmp	%rax, %rsi
+	mov	%rax, %rdi
+	call	strcmp
+	cmp	$0, %rax
 	jne	2f
 	
 	# Value was found so return it
-	ret
+	mov	%rsi, %rax
+	mov	THIS(%rbp), %rdi
+	jmp	4f
 	
 2:
 	# Increment the search index in modulo
-	inc	%rcx
-	mov	%rcx, %rax
+	mov	THIS(%rbp), %rdi
+	mov	CTR(%rbp), %rax
+	inc	%rax
 	xor	%rdx, %rdx
 	divq	LinearHashTable.siz(%rdi)
-	mov	%rdx, %rcx
+	mov	%rdx, CTR(%rbp)
 	jmp	1b
 
 3:
 	# If we exit this way the element was not found
 	xor	%rax, %rax
+4:
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	LinearHashTable_add
@@ -198,21 +216,28 @@ LinearHashTable_add:
 # @param	%rdi	Pointer to the LinearHashTable
 # @param	%rsi	The element to remove
 # @return	%rax	The removed element (or NULL on failure)
-.equ	ELEM, -8
+.equ	THIS, -8
+.equ	ELEM, -16
+.equ	DATA, -24
+.equ	CTR, -32
 .type	LinearHashTable_remove, @function
 LinearHashTable_remove:
 	push	%rbp
 	mov	%rsp, %rbp
 
 	# Local variables
-	sub	$8, %rsp
+	sub	$32, %rsp
+	mov	%rdi, THIS(%rbp)
 	mov	%rsi, ELEM(%rbp)
 
 	call	hash
-	mov	%rax, %rcx
+	mov	%rax, CTR(%rbp)
 	mov	LinearHashTable.data(%rdi), %rdx
+	mov	%rdx, DATA(%rbp)
 
 1:
+	mov	CTR(%rbp), %rcx
+	mov	DATA(%rbp), %rdx
 	mov	(%rdx, %rcx, 1<<3), %rax
 	cmp	$NIL, %rax
 	je	4f
@@ -220,10 +245,15 @@ LinearHashTable_remove:
 	cmp	$DEL, %rax
 	je	2f
 
-	cmp	%rax, %rsi
+	mov	%rax, %rdi
+	call	strcmp
+	cmp	$0, %rax
 	jne	2f
 
 	# We found the element in question and need to remove it
+	mov	CTR(%rbp), %rcx
+	mov	DATA(%rbp), %rdx
+	mov	THIS(%rbp), %rdi
 	movq	$DEL, (%rdx, %rcx, 1<<3)
 	decq	LinearHashTable.len(%rdi)
 
@@ -239,11 +269,12 @@ LinearHashTable_remove:
 2:
 	# An element was found at the expected location but it was NOT our element so we increase
 	# the search index ala modulo
-	mov	%rcx, %rax
+	mov	CTR(%rbp), %rax
+	mov	THIS(%rbp), %rdi
 	inc	%rax
 	xor	%rdx, %rdx
 	divq	LinearHashTable.siz(%rdi)
-	mov	%rdx, %rcx
+	mov	%rdx, CTR(%rbp)
 	jmp	1b
 
 3:
@@ -288,7 +319,7 @@ resize:
 	# Allocate new table
 	imul	$1<<3, %rdi
 	call	alloc
-	mov	%rax, %r9
+	mov	%rax, %r12
 
 	# Ensure ALL entries in the table are set to NIL
 	mov	SIZ(%rbp), %rcx
@@ -300,7 +331,7 @@ resize:
 
 	# Capture old values for data and siz
 	mov	THIS(%rbp), %rdi
-	mov	LinearHashTable.data(%rdi), %r8
+	mov	LinearHashTable.data(%rdi), %r11
 	mov	LinearHashTable.siz(%rdi), %rcx
 
 	# Store new values for dim, siz + use
@@ -317,7 +348,7 @@ resize:
 	cmp	$0, %rcx
 	jl	5f
 
-	mov	(%r8, %rcx, 1<<3), %rsi
+	mov	(%r11, %rcx, 1<<3), %rsi
 
 	cmp	$NIL, %rsi
 	je	2b
@@ -331,7 +362,7 @@ resize:
 
 3:
 	# Check for a free spot in the new table
-	cmpq	$NIL, (%r9, %rax, 1<<3)
+	cmpq	$NIL, (%r12, %rax, 1<<3)
 	je	4f
 
 	# Spot is not free in the new table so increment i in modulo
@@ -342,16 +373,16 @@ resize:
 	jmp	3b
 
 4:
-	mov	%rsi, (%r9, %rax, 1<<3)
+	mov	%rsi, (%r12, %rax, 1<<3)
 	jmp	2b
 
 5:
 
 	# Assign new table
-	mov	%r9, LinearHashTable.data(%rdi)
+	mov	%r12, LinearHashTable.data(%rdi)
 
 	# Free old table
-	mov	%r8, %rdi
+	mov	%r11, %rdi
 	call	free
 
 	mov	THIS(%rbp), %rdi
@@ -365,7 +396,15 @@ resize:
 # @param	%rdi	Pointer to the LinearHashTable
 # @param	%rsi	The value
 # @return	%rax	The index in the backing table for the specified value
+.equ	THIS, -8
 hash:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	# Local variables
+	sub	$8, %rsp
+	mov	%rdi, THIS(%rbp)
+
 	# Lazy generate tabulations
 	cmpq	$NULL, tab0
 	jne	1f
@@ -373,7 +412,10 @@ hash:
 	call	seed
 
 1:
-	mov	%rsi, %rdx	# We need the value in a register supporting 8-bit extractions
+	mov	%rsi, %rdi
+	call	hash_code
+
+	mov	%rax, %rdx	# We need the value in a register supporting 8-bit extractions
 
 	# Byte 0
 	movzbl	%dl, %ecx
@@ -393,9 +435,13 @@ hash:
 	movzbl	%dh, %ecx
 	xor	tab3(, %ecx, 4), %eax
 
+	mov	THIS(%rbp), %rdi
 	mov	$INT_SIZE, %rcx
 	sub	LinearHashTable.dim(%rdi), %rcx
 	shr	%cl, %rax
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	seed
