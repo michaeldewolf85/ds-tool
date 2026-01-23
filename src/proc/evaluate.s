@@ -25,6 +25,7 @@ evaluate_commands:
 	.quad	skiplistlist
 	.quad	chainedhashtable
 	.quad	linearhashtable
+	.quad	binarytree
 	.quad	0	# Sentinel
 
 handlers:
@@ -43,6 +44,7 @@ handlers:
 	.quad	skiplistlist_handler
 	.quad	chainedhashtable_handler
 	.quad	linearhashtable_handler
+	.quad	binarytree_handler
 	.quad	error_handler
 
 .section .text

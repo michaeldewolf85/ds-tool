@@ -1,6 +1,7 @@
 # lib/arrayqueue.s - ArrayQueue
 
-.globl	ArrayQueue_ctor, ArrayQueue_add, ArrayQueue_remove, ArrayQueue_log
+.globl	ArrayQueue_ctor, ArrayQueue_add, ArrayQueue_remove, ArrayQueue_log, ArrayQueue_length
+.globl	ArrayQueue_dtor
 
 ### ArrayQueue
 	.struct	0
@@ -82,6 +83,30 @@ ArrayQueue_ctor:
 	pop	%rbp
 	ret
 
+# @function	ArrayQueue_dtor
+# @description	Destructor for the ArrayQueue
+# @param	%rdi	Pointer to the ArrayQueue
+# @return	void
+.type	ArrayQueue_dtor, @function
+ArrayQueue_dtor:
+	push	%rdi
+
+	mov	ArrayQueue.data(%rdi), %rdi
+	call	free
+
+	pop	%rdi
+	call	free
+	ret
+
+# @function	ArrayQueue_length
+# @description	Returns the length of the ArrayQueue
+# @param	%rdi	Pointer to the ArrayQueue
+# @return	%rax	The length of the ArrayQueue
+.type	ArrayQueue_length, @function
+ArrayQueue_length:
+	mov	ArrayQueue.length(%rdi), %eax
+	ret
+
 # @function	ArrayQueue_add
 # @description	Adds an item to the ArrayQueue
 # @param	%rdi	Pointer to the ArrayQueue
@@ -128,6 +153,7 @@ ArrayQueue_add:
 	mov	ArrayQueue.length(%rcx), %eax
 
 3:
+	mov	ARRAYQUEUE(%rbp), %rdi
 	pop	%rax
 
 	mov	%rbp, %rsp
