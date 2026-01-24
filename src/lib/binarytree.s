@@ -140,6 +140,7 @@ BinaryTree_dtor:
 .equ	FUNC, -16
 .equ	CURR, -24
 .equ	QUEUE, -32
+.equ	CTR, -40
 .type	BinaryTree_bftraverse, @function
 BinaryTree_bftraverse:
 	push	%rbp
@@ -148,7 +149,7 @@ BinaryTree_bftraverse:
 	cmpq	$NULL, BinaryTree.root(%rdi)
 	je	4f
 
-	sub	$32, %rsp
+	sub	$40, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, FUNC(%rbp)
 	mov	BinaryTree.root(%rdi), %rax
@@ -156,6 +157,7 @@ BinaryTree_bftraverse:
 
 	call	ArrayQueue_ctor
 	mov	%rax, QUEUE(%rbp)
+	movq	$0, CTR(%rbp)
 
 	mov	%rax, %rdi
 	mov	CURR(%rbp), %rsi
@@ -170,8 +172,10 @@ BinaryTree_bftraverse:
 
 	# Invoke the callback
 	mov	%rax, %rdi
-	mov	FUNC(%rbp), %rsi
-	call	*%rsi
+	mov	CTR(%rbp), %rsi
+	mov	FUNC(%rbp), %rdx
+	call	*%rdx
+	incq	CTR(%rbp)
 
 	# From here on keep the queue in %rdi
 	mov	QUEUE(%rbp), %rdi
@@ -545,11 +549,12 @@ rtraverse:
 	mov	BinaryTreeNode.right(%rdi), %rax
 	mov	%rax, RIGHT(%rbp)
 
-	call	*%rsi
-
 	mov	LEFT(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
 	call	rtraverse
+
+	mov	THIS(%rbp), %rdi
+	call	*%rsi
 
 	mov	RIGHT(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
