@@ -310,8 +310,8 @@ BinarySearchTree_log:
 
 	mov	THIS(%rbp), %rdi
 	mov	$log_raw, %rsi
-	mov	$1, %rdx
-	call	BinaryTree_bftraverse
+	mov	$0, %rdx
+	call	BinaryTree_rtraverse
 
 	mov	$raw_end, %rdi
 	call	log
