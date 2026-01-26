@@ -20,28 +20,40 @@ idx_label:
 	.ascii	"idx => \0"
 depth_label:
 	.ascii	", depth => \0"
+raw_label:
+	.ascii	"Raw                       => {\n\0"
+raw_end:
+	.ascii	"}\n\0"
+raw_vlwrap:
+	.ascii	"[\0"
+raw_vrwrap:
+	.ascii	"]\0"
 size_label:
-	.ascii	"Size (non-recursive)         => \0"
+	.ascii	"Size (non-recursive)      => \0"
 rsize_label:
-	.ascii	"Size (recursive)             => \0"
+	.ascii	"Size (recursive)          => \0"
 rheight_label:
-	.ascii	"Height (recursive)           => \0"
+	.ascii	"Height (recursive)        => \0"
 traversal_label:
-	.ascii	"Traversal (non-recursive)    => \0"
+	.ascii	"Traversal (non-recursive) => \0"
 rtraversal_label:
-	.ascii	"Traversal (recursive)        => \0"
+	.ascii	"Traversal (recursive)     => \0"
 traversal_sdelim:
 	.ascii	"[ \0"
 traversal_mdelim:
 	.ascii	", \0"
 traversal_edelim:
-	.ascii	" ]\0"
+	.ascii	" ... ]\0"
 bftraversal_label:
-	.ascii	"Breadth traversal            => {\0"
+	.ascii	"Breadth traversal         => {\0"
 bftraversal_end:
 	.ascii	"}\0"
 spacer:
 	.ascii	"  \0"
+vert:
+	.ascii	"|\0"
+horz:
+	.ascii	"---\0"
 
 malformed:
 	.ascii	"Malformed command\n\0"
@@ -167,6 +179,17 @@ binarytree_handler:
 	mov	$newline, %rdi
 	call	log
 
+	mov	$raw_label, %rdi
+	call	log
+
+	mov	this, %rdi
+	mov	$log_raw, %rsi
+	mov	$0, %rdx
+	call	BinaryTree_rtraverse
+
+	mov	$raw_end, %rdi
+	call	log
+
 	mov	this, %rdi
 	call	BinaryTree_dtor
 
@@ -250,6 +273,56 @@ log_traverse:
 	call	log
 
 	mov	$traversal_mdelim, %rdi
+	call	log
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# Callback for raw logging:
+.equ	THIS, -8
+.equ	DEPTH, -16
+log_raw:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	mov	$spacer, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	call	BinaryTreeNode_depth
+	mov	%rax, DEPTH(%rbp)
+
+	test	%rax, %rax
+	jz	2f
+
+	mov	$vert, %rdi
+	call	log
+
+1:
+	mov	$horz, %rdi
+	call	log
+	decq	DEPTH(%rbp)
+	cmpq	$0, DEPTH(%rbp)
+	jg	1b
+
+2:
+	mov	$raw_vlwrap, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	(%rdi), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$raw_vrwrap, %rdi
+	call	log
+
+	mov	$newline, %rdi
 	call	log
 
 	mov	%rbp, %rsp
