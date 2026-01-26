@@ -526,11 +526,14 @@ rsize:
 # @description	Traverse all nodes below the given node, invoking a callback at each (recursive)
 # @param	%rdi	Pointer to a BinaryTreeNode
 # @param	%rsi	Pointer to a callback to invoke
+# @param	%rdx	Position of the callback in relation to the traversal: 0 is before left and
+#			right, 1 is between left and right, 2 is after left and right
 # @return	void
 .equ	THIS, -8
 .equ	FUNC, -16
 .equ	LEFT, -24
 .equ	RIGHT, -32
+.equ	POS, -40
 rtraverse:
 	cmp	$NULL, %rdi
 	jne	1f
@@ -541,25 +544,44 @@ rtraverse:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$32, %rsp
+	sub	$40, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, FUNC(%rbp)
+	mov	%rdx, POS(%rbp)
 	mov	BinaryTreeNode.left(%rdi), %rax
 	mov	%rax, LEFT(%rbp)
 	mov	BinaryTreeNode.right(%rdi), %rax
 	mov	%rax, RIGHT(%rbp)
 
-	mov	LEFT(%rbp), %rdi
-	mov	FUNC(%rbp), %rsi
-	call	rtraverse
+	cmpq	$0, POS(%rbp)
+	jne	2f
 
 	mov	THIS(%rbp), %rdi
 	call	*%rsi
 
+2:
+	mov	LEFT(%rbp), %rdi
+	mov	FUNC(%rbp), %rsi
+	call	rtraverse
+
+	cmpq	$1, POS(%rbp)
+	jne	3f
+
+	mov	THIS(%rbp), %rdi
+	call	*%rsi
+
+3:
 	mov	RIGHT(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
 	call	rtraverse
 
+	cmpq	$2, POS(%rbp)
+	jne	4f
+
+	mov	THIS(%rbp), %rdi
+	call	*%rsi
+
+4:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret

@@ -39,20 +39,20 @@ raw_label:
 	.ascii	"Raw  => {\n\0"
 raw_end:
 	.ascii	"}\n\0"
-raw_sdelim:
-	.ascii	"{ \0"
-raw_mldelim:
-	.ascii	" <- \0"
-raw_mrdelim:
-	.ascii	" -> \0"
-raw_edelim:
-	.ascii	" }\0"
+raw_vlwrap:
+	.ascii	"[\0"
+raw_vrwrap:
+	.ascii	"]\0"
 ts_delim:
 	.ascii	"[ \0"
 tm_delim:
 	.ascii	", \0"
 te_delim:
 	.ascii	"... ]\0"
+vert:
+	.ascii	"|\0"
+horz:
+	.ascii	"---\0"
 
 .section .text
 
@@ -281,6 +281,7 @@ BinarySearchTree_log:
 
 	mov	THIS(%rbp), %rdi
 	mov	$log_node, %rsi
+	mov	$1, %rdx
 	call	BinaryTree_rtraverse
 
 	mov	$te_delim, %rdi
@@ -309,15 +310,9 @@ BinarySearchTree_log:
 
 	mov	THIS(%rbp), %rdi
 	mov	$log_raw, %rsi
+	mov	$1, %rdx
 	call	BinaryTree_bftraverse
 
-	mov	$te_delim, %rdi
-	call	log
-
-	mov	$newline, %rdi
-	call	log
-
-1:
 	mov	$raw_end, %rdi
 	call	log
 
@@ -340,82 +335,54 @@ log_node:
 # @function	log_raw
 # @description	File private helper callback to log a node during a breadth-first traverse
 # @param	%rdi	Pointer to the node to log
-# @param	%rsi	Index of the node
 # @return	void
+# Callback for raw logging:
 .equ	THIS, -8
+.equ	DEPTH, -16
 log_raw:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$8, %rsp
+	sub	$16, %rsp
 	mov	%rdi, THIS(%rbp)
 
-	# Powers of two mean a new row
-	lea	-1(%rsi), %rax
-	test	%rax, %rsi
-	jnz	2f
+	mov	$spacer, %rdi
+	call	log
 
-	cmp	$0, %rsi
-	je	1f
+	mov	THIS(%rbp), %rdi
+	call	BinaryTreeNode_depth
+	mov	%rax, DEPTH(%rbp)
 
-	mov	$te_delim, %rdi
+	test	%rax, %rax
+	jz	2f
+
+	mov	$vert, %rdi
+	call	log
+
+1:
+	mov	$horz, %rdi
+	call	log
+	decq	DEPTH(%rbp)
+	cmpq	$0, DEPTH(%rbp)
+	jg	1b
+
+2:
+	mov	$raw_vlwrap, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	BinarySearchTreeNode.data(%rdi), %rdi
+	call	log
+
+	mov	$raw_vrwrap, %rdi
 	call	log
 
 	mov	$newline, %rdi
 	call	log
 
-1:
-	mov	$spacer, %rdi
-	call	log
-
-	mov	$ts_delim, %rdi
-	call	log
-
-2:
-	mov	$raw_sdelim, %rdi
-	call	log
-
-	# Print left node value
-	mov	THIS(%rbp), %rdi
-	mov	BinarySearchTreeNode.left(%rdi), %rax
-	mov	$null, %rdi
-	cmp	$NULL, %rax
-	je	3f
-
-	mov	BinarySearchTreeNode.data(%rax), %rdi
-
-3:
-	call	log
-
-	mov	$raw_mldelim, %rdi
-	call	log
-
-	# Print current node value
-	mov	THIS(%rbp), %rdi
-	mov	BinarySearchTreeNode.data(%rdi), %rdi
-	call	log
-
-	mov	$raw_mrdelim, %rdi
-	call	log
-
-	# Print right node value
-	mov	THIS(%rbp), %rdi
-	mov	BinarySearchTreeNode.right(%rdi), %rax
-	mov	$null, %rdi
-	cmp	$NULL, %rax
-	je	4f
-
-	mov	BinarySearchTreeNode.data(%rax), %rdi
-
-4:
-	call	log
-
-	mov	$raw_edelim, %rdi
-	call	log
-
 	mov	%rbp, %rsp
 	pop	%rbp
-	ret	
+	ret
 
 # @function	find_last
 # @description	File private method to find the node holding the smallest value greater than the
