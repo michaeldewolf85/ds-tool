@@ -562,6 +562,7 @@ rtraverse:
 2:
 	mov	LEFT(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
+	mov	POS(%rbp), %rdx
 	call	rtraverse
 
 	cmpq	$1, POS(%rbp)
@@ -573,6 +574,7 @@ rtraverse:
 3:
 	mov	RIGHT(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
+	mov	POS(%rbp), %rdx
 	call	rtraverse
 
 	cmpq	$2, POS(%rbp)
