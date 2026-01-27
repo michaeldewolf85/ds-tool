@@ -27,6 +27,7 @@ evaluate_commands:
 	.quad	linearhashtable
 	.quad	binarytree
 	.quad	binarysearchtree
+	.quad	treap
 	.quad	0	# Sentinel
 
 handlers:
@@ -47,6 +48,7 @@ handlers:
 	.quad	linearhashtable_handler
 	.quad	binarytree_handler
 	.quad	binarysearchtree_handler
+	.quad	treap_handler
 	.quad	error_handler
 
 .section .text
