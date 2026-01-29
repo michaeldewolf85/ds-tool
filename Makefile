@@ -10,5 +10,7 @@ build/%.o: %.s
 	as -g -I src/inc -o $@ $<
 run: bin/ds
 	./bin/ds
+debug: bin/ds
+	gdb ./bin/ds
 clean:
 	rm -rf bin build
