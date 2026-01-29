@@ -145,6 +145,8 @@ Treap_add:
 	mov	%rax, %rsi
 	call	bubble_up
 
+	mov	DATA(%rbp), %rax
+
 1:
 	mov	%rbp, %rsp
 	pop	%rbp
