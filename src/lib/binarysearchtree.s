@@ -245,7 +245,7 @@ BinarySearchTree_remove:
 	mov	BinarySearchTreeNode.left(%rsi), %rsi
 
 2:
-	test	%rsi, %rsi
+	cmpq	$NULL, BinarySearchTreeNode.left(%rsi)
 	jnz	1b
 
 	mov	BinarySearchTreeNode.data(%rsi), %rax
