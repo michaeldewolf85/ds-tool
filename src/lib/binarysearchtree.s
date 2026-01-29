@@ -33,10 +33,12 @@ spacer:
 	.byte	SPACE, SPACE, NULL
 null:
 	.ascii	"NULL\0"
+height_label:
+	.ascii	"Height => \0"
 size_label:
-	.ascii	"Size => \0"
+	.ascii	"Size   => \0"
 raw_label:
-	.ascii	"Raw  => {\n\0"
+	.ascii	"Raw    => {\n\0"
 raw_end:
 	.ascii	"}\n\0"
 raw_vlwrap:
@@ -301,6 +303,19 @@ BinarySearchTree_log:
 	call	itoa
 	mov	%rax, %rdi
 	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$height_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	call	BinaryTree_rheight
+	mov	%rax, %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	 log
 
 	mov	$newline, %rdi
 	call	log
