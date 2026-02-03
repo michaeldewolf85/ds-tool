@@ -9,11 +9,11 @@
 
 # Constants for hashing
 p:
-	.long	1<<32 - 5	# Large prime number
+	.quad	(1<<32) - 5	# Prime 2^32 - 5
 z:
-	.long	0xde07037a	# Random 32-bit number
+	.quad	0x6b2625ba	# 32 random bits
 z2:
-	.long	0x37cf6d13	# Random ODD 32-bit number
+	.long	0x12b20155	# Random odd 32-bit number
 
 .section .bss
 
@@ -128,51 +128,56 @@ end:
 	ret
 
 # @function	hash_code
-# @description	Hashes a (null-terminated) string into a 32-bit number
-# @param	%rdi	Pointer to the (null-terminated) string
-# @return	%rax	The hash code
+# @description	Hashes a (null-terminated) string into an 32-bit integer
+# @param	%rdi	Pointer to the (null-terminated) string to hash
+# @return	%rax	Integer hash code (32 bits long)
 .type	hash_code, @function
 hash_code:
-	xor	%rcx, %rcx	# Loop counter
-	xor	%r8, %r8	# s = 0
-	mov	$1, %r9		# zi = 1
+	# LEGEND
+	# %rdi - Pointer to the string
+	# %rcx - Current index
+	# %rax:%rdx - Intermediate values and division
+	# %r8 - s
+	# %r9 - zi
+	xor	%rcx, %rcx
+
+	xor	%r8, %r8	# s <- 0
+	mov	$1, %r9		# zi <- 1
+	jmp	2f
 
 1:
-	movzbq	(%rdi, %rcx), %rax
-	cmp	$NULL, %rax
-	je	2f
+	# xi <- ((x[i].hash_code() * z2) % 2^32) >> 1
+	mull	z2
+	shr	$1, %eax
 
-	# Calculate xi
-	imul	z2, %eax
-	mov	$1<<32, %r10
-	xor	%rdx, %rdx
-	div	%r10
-	shr	$1, %rdx
-
-	# Calculate s
-	mov	%rdx, %rax
-	imul	%r9, %rax
+	# s <- (s + zi * xi) % p
+	mul	%r9
 	add	%r8, %rax
 	xor	%rdx, %rdx
-	divl	p
+	divq	p
 	mov	%rdx, %r8
 
-	# Calculate zi
+	# zi <- (zi * z) % p
 	mov	%r9, %rax
-	imul	z, %eax
+	mulq	z
 	xor	%rdx, %rdx
-	divl	p
+	divq	p
 	mov	%rdx, %r9
 
 	inc	%rcx
-	jmp	1b
+
 2:
-	mov	p, %eax
-	sub	$1, %rax
-	imul	%r9, %rax
+	movzbq	(%rdi, %rcx), %rax
+	test	%rax, %rax
+	jnz	1b
+
+	# s <- (s + zi * (p - 1)) % p
+	mov	p, %rax
+	dec	%rax
+	mul	%r9
 	add	%r8, %rax
 	xor	%rdx, %rdx
-	divl	p
+	divq	p
 
-	mov	%rdx, %rax
+	mov	%edx, %eax
 	ret
