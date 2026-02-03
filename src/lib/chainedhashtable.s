@@ -449,12 +449,7 @@ hash:
 
 	mov	THIS(%rbp), %rdi
 	mov	ChainedHashTable.zee(%rdi), %rcx
-	imul	%rcx, %rax
-	mov	$1, %rcx
-	shl	$INT_SIZE, %rcx
-	xor	%rdx, %rdx
-	div	%rcx
-	mov	%rdx, %rax
+	imul	%ecx, %eax
 
 	mov	$INT_SIZE, %rcx
 	sub	ChainedHashTable.dim(%rdi), %ecx
