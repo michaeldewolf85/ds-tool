@@ -1,6 +1,7 @@
 # proc/handlers/redblacktree.s - Handler for the "redblacktree" command
 
 .include	"common.inc"
+.include	"structs.inc"
 
 .globl	redblacktree, redblacktree_handler
 
@@ -9,56 +10,33 @@
 .type	redblacktree, @object
 redblacktree:
 	.ascii	"redblacktree\0"
+add:
+	.ascii	"add\0"
+remove:
+	.ascii	"remove\0"
+find:
+	.ascii	"find\0"
 
-# TODO REMOVE!!
-item1:
-	.ascii	"Portland\0"
-item2:
-	.ascii	"Lewiston\0"
-item3:
-	.ascii	"Bangor\0"
-item4:
-	.ascii	"South Portland\0"
-item5:
-	.ascii	"Auburn\0"
-item6:
-	.ascii	"Biddeford\0"
-item7:
-	.ascii	"Scarborough\0"
-item8:
-	.ascii	"Sanford\0"
-item9:
-	.ascii	"Brunswick\0"
-item10:
-	.ascii	"Westbrook\0"
-item11:
-	.ascii	"Saco\0"
-item12:
-	.ascii	"Augusta\0"
-item13:
-	.ascii	"Windham\0"
-item14:
-	.ascii	"Gorham\0"
-item15:
-	.ascii	"Waterville\0"
-item16:
-	.ascii	"York\0"
-item17:
-	.ascii	"Falmouth\0"
-item18:
-	.ascii	"Kennebunk\0"
-item19:
-	.ascii	"Wells\0"
-item20:
-	.ascii	"Orono\0"
-item21:
-	.ascii	"Standish\0"
-item22:
-	.ascii	"Kittery\0"
-item23:
-	.ascii	"Lisbon\0"
-item24:
-	.ascii	"Brewer\0"
+commands:
+	.quad	add
+	.quad	remove
+	.quad	find
+	.quad	0	# Sentinel
+
+handlers:
+	.quad	RedBlackTree_add
+	.quad	RedBlackTree_remove
+	.quad	RedBlackTree_find
+
+newline:
+	.ascii	"\n\0"
+
+null:
+	.ascii	"NULL\0"
+
+malformed:
+	.ascii	"Malformed command\n\0"
+
 
 .section .bss
 
@@ -71,10 +49,16 @@ this:
 # @description	Handler for the "redblacktree" command
 # @param	%rdi	Command line input args
 # @return	void
+.equ	INPUT, -8
+.equ	COUNTER, -16
 .type	redblacktree_handler, @function
 redblacktree_handler:
 	push	%rbp
 	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, INPUT(%rbp)
+	movq	$0, COUNTER(%rbp)
 
 	cmpq	$NULL, this
 	jne	1f
@@ -83,103 +67,56 @@ redblacktree_handler:
 	mov	%rax, this
 
 1:
+	mov	INPUT(%rbp), %rax		# Input
+	cmpq	$1, Input.argc(%rax)		# If only 1 argument, print the ArrayQueue
+	je	3f
+
+	mov	Input.argv + 8(%rax), %rdi	# Current command in %rdi
+check:
+	mov	COUNTER(%rbp), %rcx
+	mov	commands(, %rcx, 1<<3), %rsi	# Current command being examined
+	cmp	$0, %rsi			# Check for NULL sentinel which indicates no ...
+	je	error				# matching command was found
+
+	call	strcmp
+	cmp	$0, %rax
+	je	match
+
+	incq	COUNTER(%rbp)
+	jmp	check
+
+match:
 	mov	this, %rdi
 
-	mov	$item1, %rsi
-	call	RedBlackTree_add
+	mov	INPUT(%rbp), %rax		# Only "add" command takes an argument but argv ...
+	mov	Input.argv + 16(%rax), %rsi	# passes zeroes in all the other slots
 
-	mov	$item2, %rsi
-	call	RedBlackTree_add
+	mov	COUNTER(%rbp), %rcx
+	call	*handlers(, %rcx, 1<<3)
 
-	mov	$item3, %rsi
-	call	RedBlackTree_add
+	mov	$null, %rcx
+	cmp	$0, %rax
+	cmove	%rcx, %rax
 
-	mov	$item4, %rsi
-	call	RedBlackTree_add
+	mov	%rax, %rdi
+	call	log
 
+	mov	$newline, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+3:
+	mov	this, %rdi
 	call	RedBlackTree_log
 
-	mov	$item5, %rsi
-	call	RedBlackTree_add
-
-	mov	$item6, %rsi
-	call	RedBlackTree_add
-
-	mov	$item7, %rsi
-	call	RedBlackTree_add
-
-	mov	$item8, %rsi
-	call	RedBlackTree_add
-
-	call	RedBlackTree_log
-
-	mov	$item9, %rsi
-	call	RedBlackTree_add
-
-	mov	$item10, %rsi
-	call	RedBlackTree_add
-
-	mov	$item11, %rsi
-	call	RedBlackTree_add
-
-	mov	$item12, %rsi
-	call	RedBlackTree_add
-
-	mov	$item13, %rsi
-	call	RedBlackTree_add
-
-	mov	$item14, %rsi
-	call	RedBlackTree_add
-
-	mov	$item15, %rsi
-	call	RedBlackTree_add
-
-	mov	$item16, %rsi
-	call	RedBlackTree_add
-
-	mov	$item17, %rsi
-	call	RedBlackTree_add
-
-	mov	$item18, %rsi
-	call	RedBlackTree_add
-
-	mov	$item19, %rsi
-	call	RedBlackTree_add
-
-	mov	$item20, %rsi
-	call	RedBlackTree_add
-
-	mov	$item21, %rsi
-	call	RedBlackTree_add
-
-	mov	$item22, %rsi
-	call	RedBlackTree_add
-
-	mov	$item23, %rsi
-	call	RedBlackTree_add
-
-	mov	$item24, %rsi
-	call	RedBlackTree_add
-
-	call	RedBlackTree_log
-
-	call	print
-
-	#mov	$item1, %rsi
-	#call	RedBlackTree_remove
-
-	#mov	$item6, %rsi
-	#call	RedBlackTree_remove
-
-	#mov	$item12, %rsi
-	#call	RedBlackTree_remove
-
-	#mov	$item18, %rsi
-	#call	RedBlackTree_remove
-
-	#mov	$item24, %rsi
-	#call	RedBlackTree_remove
-
+4:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+
+error:
+	mov	$malformed, %rdi
+	call	log
+	jmp	4b

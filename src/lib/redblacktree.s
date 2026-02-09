@@ -3,6 +3,7 @@
 .include	"common.inc"
 
 .globl	RedBlackTree_ctor, RedBlackTree_add, RedBlackTree_remove, RedBlackTree_log
+.globl	RedBlackTree_find
 
 # RedBlackTree
 	.struct	0
@@ -10,6 +11,8 @@ RedBlackTree.root:
 	.struct	RedBlackTree.root + 1<<3
 RedBlackTree.size:
 	.struct	RedBlackTree.size + 1<<3
+RedBlackTree.nil:
+	.struct	RedBlackTree.nil + 1<<3
 .equ	REDBLACKTREE_SIZE, .
 
 # RedBlackTreeNode
@@ -37,7 +40,15 @@ newline:
 null:
 	.ascii	"NULL\0"
 raw_label:
-	.ascii	"Raw => {\0"
+	.ascii	"Raw  => {\0"
+set_label:
+	.ascii	"Set  => [ \0"
+set_end:
+	.ascii	" ]\n\0"
+set_mid:
+	.ascii	", \0"
+size_label:
+	.ascii	"Size => \0"
 raw_end:
 	.ascii	"}\0"
 ds_delim:
@@ -60,12 +71,85 @@ black_circle:
 # @function	RedBlackTree_ctor
 # @description	Constructor for a RedBlackTree
 # @return	%rax	Pointer to the new RedBlackTree
+.equ	NODE, -8
 .type	RedBlackTree_ctor, @function
 RedBlackTree_ctor:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$8, %rsp
+
+	mov	$REDBLACKTREENODE_SIZE, %rdi
+	call	alloc
+
+	movq	$NULL, RedBlackTreeNode.data(%rax)
+	movq	$NULL, RedBlackTreeNode.parent(%rax)
+	movq	$NULL, RedBlackTreeNode.left(%rax)
+	movq	$NULL, RedBlackTreeNode.right(%rax)
+	movq	$BLACK, RedBlackTreeNode.color(%rax)
+	mov	%rax, NODE(%rbp)
+
 	mov	$REDBLACKTREE_SIZE, %rdi
 	call	alloc
-	movq	$NULL, RedBlackTree.root(%rax)
+	mov	NODE(%rbp), %rcx
+	mov	%rcx, RedBlackTree.root(%rax)
 	movq	$0, RedBlackTree.size(%rax)
+	mov	%rcx, RedBlackTree.nil(%rax)
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	RedBlackTree_find
+# @desciption	Find and item in a RedBlackTree
+# @param	%rdi	Pointer to the RedBlackTree
+# @param	%rsi	The item to add
+# @return	%rax	The item on success, NULL on failure (e.g. node already in the tree)
+.equ	THIS, -8
+.equ	ITEM, -16
+.equ	NODE, -24
+.type	RedBlackTree_find, @function
+RedBlackTree_find:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$24, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, ITEM(%rbp)
+
+	mov	RedBlackTree.root(%rdi), %rax
+	mov	%rax, NODE(%rbp)
+	jmp	3f
+
+1:
+	mov	RedBlackTreeNode.data(%rax), %rdi
+	call	strcmp
+	test	%rax, %rax
+
+	mov	THIS(%rbp), %rdi
+	mov	NODE(%rbp), %rax
+
+	cmovz	%rsi, %rax
+	jz	4f
+	js	2f
+
+	mov	RedBlackTreeNode.left(%rax), %rax
+	mov	%rax, NODE(%rbp)
+	jmp	3f
+
+2:
+	mov	RedBlackTreeNode.right(%rax), %rax
+	mov	%rax, NODE(%rbp)
+
+3:
+	cmp	RedBlackTree.nil(%rdi), %rax
+	jne	1b
+
+	mov	$NULL, %rax
+
+4:
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	RedBlackTree_add
@@ -79,7 +163,6 @@ RedBlackTree_add:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	# TODO we may not need this!!
 	sub	$8, %rsp
 	mov	%rdi, THIS(%rbp)
 
@@ -92,6 +175,7 @@ RedBlackTree_add:
 	mov	%rax, %rsi
 	call	add_fixup
 
+	mov	RedBlackTreeNode.data(%rax), %rax
 1:
 	mov	%rbp, %rsp
 	pop	%rbp
@@ -114,12 +198,13 @@ RedBlackTree_remove:
 	mov	%rdi, THIS(%rbp)
 
 	call	find_last
-	test	%rax, %rax
-	jz	3f
+	cmp	RedBlackTree.nil(%rdi), %rax
+	je	3f
 
 	mov	%rax, NODE(%rbp)
 	mov	RedBlackTreeNode.data(%rax), %rdi
 	call	strcmp
+	mov	THIS(%rbp), %rdi
 	test	%rax, %rax
 	jnz	3f
 
@@ -133,8 +218,8 @@ RedBlackTree_remove:
 	# First we check it's right child
 	mov	NODE(%rbp), %rax
 	mov	RedBlackTreeNode.right(%rax), %rsi
-	test	%rsi, %rsi
-	jnz	1f
+	cmp	RedBlackTree.nil(%rdi), %rsi
+	jne	1f
 
 	# If the right child of the node we want to remove is NULL then we can just splice the node
 	# we want to remove
@@ -146,9 +231,9 @@ RedBlackTree_remove:
 	# Otherwise we recurse down the left side of the right child of u until we reach a null
 	# node which means we found the smallest value larger than u
 	mov	RedBlackTreeNode.left(%rsi), %rcx
-	test	%rcx, %rcx
-	cmovnz	%rcx, %rsi
-	jnz	1b
+	cmp	RedBlackTree.nil(%rdi), %rcx
+	cmovne	%rcx, %rsi
+	jne	1b
 	
 	# Now that we've found the node with the smallest value large than you we replace the data
 	# at u with the data at that node
@@ -160,12 +245,12 @@ RedBlackTree_remove:
 	# Save w and u
 	mov	%rax, NODE(%rbp)
 	mov	%rsi, PRNT(%rbp)
-
-	mov	THIS(%rbp), %rdi
 	call	splice
 
-	# TODO: I'm not completely clear on how to solve this but basically I'm in a situation 
-	# where NODE in %rax is NULL. This happens when the node from find_last has no children
+	# Update colors temporarily to the target (which may result in a double black but this will
+	# be fixed in remove_fixup
+	mov	NODE(%rbp), %rax
+	mov	PRNT(%rbp), %rsi
 	mov	RedBlackTreeNode.color(%rsi), %rcx
 	add	%rcx, RedBlackTreeNode.color(%rax)
 	mov	RedBlackTreeNode.parent(%rsi), %rcx
@@ -175,6 +260,7 @@ RedBlackTree_remove:
 	mov	%rsi, %rdi
 	call	free
 
+	mov	THIS(%rbp), %rdi
 	mov	NODE(%rbp), %rsi
 	call	remove_fixup
 
@@ -197,6 +283,31 @@ RedBlackTree_log:
 	sub	$8, %rsp
 	mov	%rdi, THIS(%rbp)
 
+	mov	$size_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	RedBlackTree.size(%rdi), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	$set_label, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
+	mov	RedBlackTree.root(%rdi), %rdi
+	mov	$log_data, %rsi
+	xor	%rdx, %rdx
+	mov	$1, %rcx
+	call	traverse
+
+	mov	$set_end, %rdi
+	call	log
+
 	mov	$raw_label, %rdi
 	call	log
 
@@ -207,9 +318,13 @@ RedBlackTree_log:
 	mov	RedBlackTree.root(%rdi), %rdi
 	mov	$log_node, %rsi
 	xor	%rdx, %rdx
+	mov	$0, %rcx
 	call	traverse
 
 	mov	$raw_end, %rdi
+	call	log
+
+	mov	$newline, %rdi
 	call	log
 
 	mov	THIS(%rbp), %rdi
@@ -217,6 +332,22 @@ RedBlackTree_log:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
+
+# @function	log_data
+# @description	File private helper callback to log a node value during a traverse
+# @param	%rdi	Pointer to the node to log
+# @return	void
+log_data:
+	mov	RedBlackTreeNode.data(%rdi), %rdi
+	test	%rdi, %rdi
+	jz	1f
+
+	call	log
+
+	mov	$set_mid, %rdi
+	call	log
+1:
+	ret	
 
 # @function	log_node
 # @description	File private helper callback to log a node during traverse
@@ -284,6 +415,9 @@ log_node:
 5:
 	mov	THIS(%rbp), %rdi
 	mov	RedBlackTreeNode.data(%rdi), %rdi
+	mov	$null, %rsi
+	test	%rdi, %rdi
+	cmovz	%rsi, %rdi
 	call	log
 
 6:
@@ -299,26 +433,33 @@ log_node:
 # @param	%rdi	Pointer to the subtree root (RedBlackTreeNode)
 # @param	%rsi	Pointer to a callback. Callback will recieve the node in %rdi
 # @param	%rdx	The depth
+# @param	%rcx	Position of the callback
 # @return	void
 .equ	THIS, -8
 .equ	FUNC, -16
 .equ	DPTH, -24
+.equ	POSC, -32
 traverse:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$24, %rsp
+	sub	$32, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, FUNC(%rbp)
 	mov	%rdx, DPTH(%rbp)
+	mov	%rcx, POSC(%rbp)
+
+	test	%rdi, %rdi
+	jz	3f
+
+	cmpq	$0, POSC(%rbp)
+	jne	1f
 
 	mov	%rdx, %rsi
 	call	*FUNC(%rbp)
 
+1:
 	mov	THIS(%rbp), %rdi
-	mov	DPTH(%rbp), %rsi
-	test	%rdi, %rdi
-	jz	1f
 
 	incq	DPTH(%rbp)
 
@@ -327,13 +468,28 @@ traverse:
 	mov	RedBlackTreeNode.left(%rdi), %rdi
 	call	traverse
 
+	cmpq	$1, POSC(%rbp)
+	jne	2f
+
+	mov	THIS(%rbp), %rdi
+	mov	%rdx, %rsi
+	call	*FUNC(%rbp)
+
+2:
 	mov	THIS(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
 	mov	DPTH(%rbp), %rdx
 	mov	RedBlackTreeNode.right(%rdi), %rdi
 	call	traverse
 
-1:
+	cmpq	$2, POSC(%rbp)
+	jne	3f
+
+	mov	THIS(%rbp), %rdi
+	mov	%rdx, %rsi
+	call	*FUNC(%rbp)
+
+3:
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -353,16 +509,11 @@ add_node:
 	mov	%rdi, THIS(%rbp)
 
 	call	find_last
-	mov	%rax, NODE(%rbp)
-	test	%rax, %rax
-	jnz	1f
+	cmp	RedBlackTree.nil(%rdi), %rax
+	jne	1f
 
 	# "Last" node is NULL which indicates we are inserting into an empty tree
-	mov	%rsi, %rdi
 	call	new_node
-
-	# Insert new node as the "root"
-	mov	THIS(%rbp), %rdi
 	mov	%rax, RedBlackTree.root(%rdi)
 	incq	RedBlackTree.size(%rdi)
 	jmp	4f
@@ -374,6 +525,8 @@ add_node:
 	# return the NULL result in %rax ()
 	mov	RedBlackTreeNode.data(%rax), %rdi
 	call	strcmp
+	mov	THIS(%rbp), %rdi
+
 	test	%rax, %rax
 	jz	4f
 
@@ -382,7 +535,6 @@ add_node:
 	pushf
 
 	# Create the new node
-	mov	%rsi, %rdi
 	call	new_node
 
 	# Put parent in %rcx and jump to the correct assignment logic
@@ -402,21 +554,10 @@ add_node:
 	# Set parent (%rcx) on the new node
 	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
-	# Restore "this" pointer
-	mov	THIS(%rbp), %rdi
-
 	# Update the tree size
 	incq	RedBlackTree.size(%rdi)
 
 4:
-	mov	%rbp, %rsp
-	pop	%rbp
-	ret
-
-4:
-	# Node already exists in the tree. In this case %rax is already set to NULL so we only
-	# need to restore the this pointer
-	mov	THIS(%rbp), %rdi
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -445,6 +586,8 @@ find_last:
 
 	mov	RedBlackTreeNode.data(%rax), %rdi
 	call	strcmp
+	mov	THIS(%rbp), %rdi
+
 	test	%rax, %rax
 	jz	4f					# Node contains the value
 
@@ -461,11 +604,10 @@ find_last:
 	mov	RedBlackTreeNode.right(%rax), %rax
 
 3:
-	test	%rax, %rax
-	jnz	1b
+	cmp	RedBlackTree.nil(%rdi), %rax
+	jne	1b
 
 4:
-	mov	THIS(%rbp), %rdi
 	mov	NODE(%rbp), %rax
 
 	mov	%rbp, %rsp
@@ -474,23 +616,36 @@ find_last:
 
 # @function	new_node
 # @description	Creates a new RedBlackTreeNode
-# @param	%rdi	The value of the node
-# @return	%rax
+# @param	%rdi	Pointer to a RedBlackTreeq
+# @param	%rsi	Data value of the new node
+# @return	%rax	Pointer to the new node
+.equ	THIS, -8
+.equ	DATA, -16
 new_node:
-	push	%rdi
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, DATA(%rbp)
 
 	# Allocate the node
 	mov	$REDBLACKTREENODE_SIZE, %rdi
 	call	alloc
 
 	# Assign attributes
-	pop	%rdi
-	mov	%rdi, RedBlackTreeNode.data(%rax)
-	movq	$NULL, RedBlackTreeNode.parent(%rax)
-	movq	$NULL, RedBlackTreeNode.left(%rax)
-	movq	$NULL, RedBlackTreeNode.right(%rax)
+	mov	DATA(%rbp), %rcx
+	mov	%rcx, RedBlackTreeNode.data(%rax)
+
+	mov	THIS(%rbp), %rdi
+	mov	RedBlackTree.nil(%rdi), %rcx
+	mov	%rcx, RedBlackTreeNode.parent(%rax)
+	mov	%rcx, RedBlackTreeNode.left(%rax)
+	mov	%rcx, RedBlackTreeNode.right(%rax)
 	movq	$RED, RedBlackTreeNode.color(%rax)
 
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	push_black
@@ -532,8 +687,8 @@ rotate_left:
 	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
 	# Check if the parent is NULL
-	test	%rcx, %rcx
-	jz	2f
+	cmp	RedBlackTree.nil(%rdi), %rcx
+	je	2f
 
 	# Checks if u was a left or right child
 	cmp	%rsi, RedBlackTreeNode.left(%rcx)
@@ -554,8 +709,8 @@ rotate_left:
 	mov	RedBlackTreeNode.left(%rax), %rdx
 	mov	%rdx, RedBlackTreeNode.right(%rsi)
 
-	test	%rdx, %rdx
-	jz	3f
+	cmp	RedBlackTree.nil(%rdi), %rdx
+	je	3f
 
 	mov	%rsi, RedBlackTreeNode.parent(%rdx)
 
@@ -573,7 +728,8 @@ rotate_left:
 	# If u was the root of the tree update the root of the tree to be w and set w's parent to
 	# NULL
 	mov	%rax, RedBlackTree.root(%rdi)
-	movq	$NULL, RedBlackTreeNode.parent(%rax)
+	mov	RedBlackTree.nil(%rdi), %rcx
+	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
 4:
 	ret
@@ -590,9 +746,9 @@ rotate_right:
 	mov	RedBlackTreeNode.parent(%rsi), %rcx
 	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
-	# Check if the parent is NULL
-	test	%rcx, %rcx
-	jz	2f
+	# Check if the parent is nil
+	cmp	RedBlackTree.nil(%rdi), %rcx
+	je	2f
 
 	# Checks if u was a left or right child
 	cmp	%rsi, RedBlackTreeNode.left(%rcx)
@@ -613,8 +769,8 @@ rotate_right:
 	mov	RedBlackTreeNode.right(%rax), %rdx
 	mov	%rdx, RedBlackTreeNode.left(%rsi)
 
-	test	%rdx, %rdx
-	jz	3f
+	cmp	RedBlackTree.nil(%rdi), %rdx
+	je	3f
 
 	mov	%rsi, RedBlackTreeNode.parent(%rdx)
 
@@ -632,7 +788,8 @@ rotate_right:
 	# If u was the root of the tree update the root of the tree to be w and set w's parent to
 	# NULL
 	mov	%rax, RedBlackTree.root(%rdi)
-	movq	$NULL, RedBlackTreeNode.parent(%rax)
+	mov	RedBlackTree.nil(%rdi), %rcx
+	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
 4:
 	ret
@@ -671,7 +828,7 @@ flip_right:
 # @description	File private helper that restores all RedBlackTree properties after addition
 # @param	%rdi	Pointer to the RedBlackTree
 # @param	%rsi	Pointer to the RedBlackTreeNode that was just added whose color is red
-# @return	void
+# @return	%rax	Pointer to the added node, now "fixed up"
 .equ	THIS, -8
 .equ	NODE, -16
 .equ	PRNT, -24
@@ -705,9 +862,6 @@ add_fixup:
 
 	# Check if left child of the parent (w) is black
 	mov	RedBlackTreeNode.left(%rax), %rcx
-	test	%rcx, %rcx
-	jz	3f
-
 	cmpq	$BLACK, RedBlackTreeNode.color(%rcx)
 	jne	4f
 
@@ -737,14 +891,10 @@ add_fixup:
 	# Otherwise this means that w is red and u is red so we violate the no red edge property.
 	# We move our focus up one level up to w's parent (u's grandparent)
 	mov	RedBlackTreeNode.parent(%rax), %rsi
-	mov	%rsi, NODE(%rbp)
 
 	# We check if the right node on the grandparent is black. If so we may be able to fix the
 	# no-red-edge property by flipping right
 	mov	RedBlackTreeNode.right(%rsi), %rax
-	test	%rax, %rax
-	jz	5f
-
 	cmpq	$BLACK, RedBlackTreeNode.color(%rax)
 	jne	6f
 
@@ -765,6 +915,7 @@ add_fixup:
 	je	1b
 
 8:
+	mov	NODE(%rbp), %rax
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -776,8 +927,8 @@ add_fixup:
 # @return	void
 splice:
 	mov	RedBlackTreeNode.left(%rsi), %rax
-	test	%rax, %rax
-	jz	1f
+	cmp	RedBlackTree.nil(%rdi), %rax
+	je	1f
 
 	mov	RedBlackTreeNode.left(%rsi), %rax
 	jmp	2f
@@ -792,7 +943,7 @@ splice:
 
 	# Node to be removed is the root
 	mov	%rax, RedBlackTree.root(%rdi)
-	xor	%rcx, %rcx
+	mov	RedBlackTree.nil(%rdi), %rcx
 	jmp	5f
 
 3:
@@ -808,8 +959,8 @@ splice:
 	mov	%rax, RedBlackTreeNode.right(%rcx)
 
 5:
-	test	%rax, %rax
-	jz	6f
+	cmp	RedBlackTree.nil(%rdi), %rax
+	je	6f
 
 	mov	%rcx, RedBlackTreeNode.parent(%rax)
 
@@ -847,8 +998,8 @@ remove_fixup:
 2:
 	mov	RedBlackTreeNode.parent(%rsi), %rax
 	mov	RedBlackTreeNode.left(%rax), %rax
-	testq	$RED, RedBlackTreeNode.color(%rax)
-	jnz	3f
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
+	jne	3f
 
 	# Fixup case 1 ... u's sibling, v, is red
 	call	remove_fixup_case1
@@ -878,8 +1029,8 @@ remove_fixup:
 	mov	RedBlackTreeNode.parent(%rsi), %rsi
 	mov	RedBlackTreeNode.right(%rsi), %rax
 
-	testq	$RED, RedBlackTreeNode.color(%rax)
-	jnz	6f
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
+	jne	6f
 
 	mov	RedBlackTreeNode.left(%rsi), %rax
 	cmpq	$BLACK, RedBlackTreeNode.color(%rax)
@@ -944,8 +1095,8 @@ remove_fixup_case2:
 	mov	RedBlackTreeNode.right(%rsi), %rax
 	mov	%rax, RGHT_NEW(%rbp)
 
-	testq	$RED, RedBlackTreeNode.color(%rax)
-	jnz	2f
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
+	jne	2f
 
 	call	rotate_left
 
@@ -958,8 +1109,8 @@ remove_fixup_case2:
 	mov	THIS(%rbp), %rdi
 	mov	RGHT_OLD(%rbp), %rsi
 	mov	RedBlackTreeNode.right(%rsi), %rax
-	testq	$RED, RedBlackTreeNode.color(%rax)
-	jnz	1f
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
+	jne	1f
 
 	call	flip_left
 
@@ -1000,13 +1151,14 @@ remove_fixup_case3:
 	call	pull_black
 
 	mov	THIS(%rbp), %rdi
+	mov	PRNT(%rbp), %rsi
 	call	flip_right
 
 	mov	RedBlackTreeNode.left(%rsi), %rax
 	mov	%rax, LEFT_NEW(%rbp)
 
-	testq	$RED, RedBlackTreeNode.color(%rax)
-	jnz	2f
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
+	jne	2f
 
 	call	rotate_right
 
@@ -1022,8 +1174,8 @@ remove_fixup_case3:
 
 2:
 	mov	LEFT_OLD(%rbp), %rsi
-	testq	$RED, RedBlackTreeNode.color(%rsi)
-	jnz	3f
+	cmpq	$RED, RedBlackTreeNode.color(%rsi)
+	jne	3f
 
 	mov	%rsi, %rdi
 	call	push_black
