@@ -218,8 +218,10 @@ ScapegoatTree_remove:
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, VAL(%rbp)
 	call	find_last_with_depth
-	mov	%rax, NODE(%rbp)
+	test	%rax, %rax
+	jz	5f
 
+	mov	%rax, NODE(%rbp)
 	mov	ScapegoatTreeNode.data(%rax), %rdi
 	call	strcmp
 	test	%rax, %rax

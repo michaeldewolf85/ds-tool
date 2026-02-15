@@ -220,6 +220,9 @@ BinarySearchTree_remove:
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, DATA(%rbp)
 	call	find_last
+	test	%rax, %rax
+	jz	4f
+
 	mov	%rax, LAST(%rbp)
 
 	# Check to see if the tree even has the value
