@@ -230,7 +230,7 @@ BinarySearchTree_remove:
 	mov	BinarySearchTreeNode.data(%rax), %rsi
 	call	strcmp
 	test	%rax, %rax
-	xor	%rax, %rax
+	mov	$0, %rax
 	jnz	4f
 
 	# Check if the node has one or two NULL children
