@@ -30,6 +30,7 @@ evaluate_commands:
 	.quad	treap
 	.quad	scapegoattree
 	.quad	binaryheap
+	.quad	meldableheap
 	.quad	0	# Sentinel
 
 handlers:
@@ -53,6 +54,7 @@ handlers:
 	.quad	treap_handler
 	.quad	scapegoattree_handler
 	.quad	binaryheap_handler
+	.quad	meldableheap_handler
 	.quad	error_handler
 
 .section .text
