@@ -1,15 +1,15 @@
-# proc/handlers/binaryheap.s - Handler for the "binaryheap" command
+# proc/handlers/meldableheap.s - Handler for the "meldableheap" command
 
 .include	"common.inc"
 .include	"structs.inc"
 
-.globl	binaryheap, binaryheap_handler
+.globl	meldableheap, meldableheap_handler
 
 .section .rodata
 
-.type	binaryheap, @object
-binaryheap:
-	.ascii	"binaryheap\0"
+.type	meldableheap, @object
+meldableheap:
+	.ascii	"meldableheap\0"
 
 add:
 	.ascii	"add\0"
@@ -22,8 +22,8 @@ commands:
 	.quad	0	# Sentinel
 
 handlers:
-	.quad	BinaryHeap_add
-	.quad	BinaryHeap_remove
+	.quad	MeldableHeap_add
+	.quad	MeldableHeap_remove
 
 newline:
 	.ascii	"\n\0"
@@ -41,14 +41,14 @@ this:
 
 .section .text
 
-# @function	binaryheap_handler
-# @description	Handler for the "binaryheap" command
-# @param	%rdi	Pointer to user input
+# @function	meldableheap_handler
+# @description	Handler for the "meldableheap" command
+# @param	%rdi	Pointer to the InputData struct
 # @return	void
 .equ	INPUT, -8
 .equ	COUNTER, -16
-.type	binaryheap_handler, @function
-binaryheap_handler:
+.type	meldableheap_handler, @function
+meldableheap_handler:
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -59,7 +59,7 @@ binaryheap_handler:
 	cmp	$NULL, this
 	jne	1f
 
-	call	BinaryHeap_ctor
+	call	MeldableHeap_ctor
 	mov	%rax, this
 
 1:
@@ -105,7 +105,7 @@ match:
 
 3:
 	mov	this, %rdi
-	call	BinaryHeap_log
+	call	MeldableHeap_log
 
 4:
 	mov	%rbp, %rsp
