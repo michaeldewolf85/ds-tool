@@ -2,7 +2,7 @@
 
 .include	"common.inc"
 
-.globl	BinaryHeap_ctor, BinaryHeap_add, BinaryHeap_remove, BinaryHeap_log
+.globl	BinaryHeap_ctor, BinaryHeap_add, BinaryHeap_remove, BinaryHeap_log, BinaryHeap_trickle_down
 
 # BinaryHeap
 	.struct	0
@@ -147,7 +147,7 @@ BinaryHeap_remove:
 	decl	BinaryHeap.len(%rdi)
 	
 	xor	%rsi, %rsi
-	call	trickle_down
+	call	BinaryHeap_trickle_down
 
 	mov	BinaryHeap.len(%rdi), %eax
 	imul	$3, %rax
@@ -535,8 +535,8 @@ resize:
 	pop	%rbp
 	ret
 
-# @function	trickle_down
-# @description	File private helper to restore the heap property after a removal
+# @function	BinaryHeap_trickle_down
+# @description	Helper to restore the heap property after a removal
 # @param	%rdi	Pointer to the BinaryHeap
 # @param	%rsi	Index of last removed item (in backing array) which may violate heap
 # @return	void
@@ -545,7 +545,7 @@ resize:
 .equ	PIDX, -24
 .equ	RGHT, -32
 .equ	LEFT, -40
-trickle_down:
+BinaryHeap_trickle_down:
 	push	%rbp
 	mov	%rsp, %rbp
 

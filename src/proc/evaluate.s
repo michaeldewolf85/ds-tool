@@ -31,6 +31,7 @@ evaluate_commands:
 	.quad	scapegoattree
 	.quad	binaryheap
 	.quad	meldableheap
+	.quad	sort
 	.quad	0	# Sentinel
 
 handlers:
@@ -55,6 +56,7 @@ handlers:
 	.quad	scapegoattree_handler
 	.quad	binaryheap_handler
 	.quad	meldableheap_handler
+	.quad	sort_handler
 	.quad	error_handler
 
 .section .text
