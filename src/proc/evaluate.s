@@ -32,6 +32,7 @@ evaluate_commands:
 	.quad	binaryheap
 	.quad	meldableheap
 	.quad	sort
+	.quad	adjacencymatrix
 	.quad	0	# Sentinel
 
 handlers:
@@ -57,6 +58,7 @@ handlers:
 	.quad	binaryheap_handler
 	.quad	meldableheap_handler
 	.quad	sort_handler
+	.quad	adjacencymatrix_handler
 	.quad	error_handler
 
 .section .text
