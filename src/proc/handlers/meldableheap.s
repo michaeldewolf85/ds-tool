@@ -56,7 +56,7 @@ meldableheap_handler:
 	mov	%rdi, INPUT(%rbp)
 	movq	$0, COUNTER(%rbp)
 
-	cmp	$NULL, this
+	cmpq	$NULL, this
 	jne	1f
 
 	call	MeldableHeap_ctor
