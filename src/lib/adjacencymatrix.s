@@ -228,8 +228,8 @@ AdjacencyMatrix_log:
 # @function	AdjacencyMatrix_add_edge
 # @description	Adds an edge at the specified coordinates
 # @param	%rdi	Pointer to an AdjacencyMatrix
-# @param	%rsi	Source of the edge (row)
-# @param	%rdx	Target of the edge (column)
+# @param	%rsi	The in vertex
+# @param	%rdx	The out vertex
 # return	void
 .type	AdjacencyMatrix_add_edge, @function
 AdjacencyMatrix_add_edge:
@@ -253,8 +253,8 @@ AdjacencyMatrix_add_edge:
 # @function	AdjacencyMatrix_remove_edge
 # @description	Removes an edge at the specified coordinates
 # @param	%rdi	Pointer to an AdjacencyMatrix
-# @param	%rsi	Source of the edge (row)
-# @param	%rdx	Target of the edge (column)
+# @param	%rsi	The in vertex
+# @param	%rdx	The out vertex
 # return	void
 .type	AdjacencyMatrix_remove_edge, @function
 AdjacencyMatrix_remove_edge:
@@ -278,8 +278,8 @@ AdjacencyMatrix_remove_edge:
 # @function	AdjacencyMatrix_has_edge
 # @description	Returns whether an edge exists at the specified coordinates
 # @param	%rdi	Pointer to an AdjacencyMatrix
-# @param	%rsi	Source of the edge (row)
-# @param	%rdx	Target of the edge (column)
+# @param	%rsi	The in edge
+# @param	%rdx	The out edge
 # return	%rax	TRUE if the edge exists, FALSE otherwise
 .type	AdjacencyMatrix_has_edge, @function
 AdjacencyMatrix_has_edge:
@@ -303,7 +303,7 @@ AdjacencyMatrix_has_edge:
 # @function	AdjacencyMatrix_out_edges
 # @description	Gets all the columns which have edges for the specified row
 # @param	%rdi	Pointer to the AdjacencyMatrix
-# @param	%rsi	The row to search through
+# @param	%rsi	An in edge to search through
 # @return	%rax	Pointer to an Array of vertices
 .equ	THIS, -8
 .equ	ROW, -16
@@ -371,7 +371,7 @@ AdjacencyMatrix_out_edges:
 # @function	AdjacencyMatrix_in_edges
 # @description	Gets all the rows which have edges for the specified column
 # @param	%rdi	Pointer to the AdjacencyMatrix
-# @param	%rsi	The column to search through
+# @param	%rsi	An out edge to search through
 # @return	%rax	Pointer to an Array of vertices
 .equ	THIS, -8
 .equ	COL, -16
