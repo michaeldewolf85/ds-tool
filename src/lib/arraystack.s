@@ -1,7 +1,7 @@
 # lib/arraystack.s - ArrayStack
 
 .globl	ArrayStack_ctor, ArrayStack_length, ArrayStack_get, ArrayStack_set, ArrayStack_add, 
-.globl	ArrayStack_remove, ArrayStack_log, ArrayStack_dtor
+.globl	ArrayStack_remove, ArrayStack_log, ArrayStack_dtor, ArrayStack_slog
 
 # ArrayStack struct
 	.struct	0
@@ -39,6 +39,13 @@ length:
 
 size:
 	.ascii	"Size   => \0"
+
+slog_start:
+	.ascii	"ArrayStack[ \0"
+slog_mid:
+	.ascii	", \0"
+slog_end:
+	.ascii	" ]\0"
 
 .section .text
 
@@ -381,6 +388,56 @@ ArrayStack_log:
 	pop	%r13
 	pop	%r12
 	pop	%rbx
+	ret
+
+# @function	ArrayStack_slog
+# @description	Short form log of an ArrayStack. This logs only numbers for the entries!!
+# @param	%rdi	Pointer to the ArrayStack
+# @return	void
+.equ	THIS, -8
+.equ	TEMP, -16
+.type	ArrayStack_slog, @function
+ArrayStack_slog:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	mov	$slog_start, %rdi
+	call	log
+
+	movq	$0, TEMP(%rbp)
+	jmp	2f
+
+1:
+	call	ArrayStack_get
+	mov	%rax, %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	incq	TEMP(%rbp)
+
+	mov	THIS(%rbp), %rdi
+	mov	TEMP(%rbp), %rsi
+	cmp	ArrayStack.length(%rdi), %esi
+	je	2f
+
+	mov	$slog_mid, %rdi
+	call	log
+
+2:
+	mov	THIS(%rbp), %rdi
+	mov	TEMP(%rbp), %rsi
+	cmp	ArrayStack.length(%rdi), %esi
+	jl	1b
+
+	mov	$slog_end, %rdi
+	call	log
+
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @function	resize
