@@ -4,7 +4,7 @@
 
 .globl	AdjacencyList_ctor, AdjacencyList_add_edge, AdjacencyList_remove_edge
 .globl	AdjacencyList_has_edge, AdjacencyList_out_edges, AdjacencyList_in_edges
-.globl	AdjacencyList_log
+.globl	AdjacencyList_log, AdjacencyList_bfs, AdjacencyList_rdfs, AdjacencyList_dfs
 
 # AdjacencyList
 	.struct	0
@@ -434,6 +434,346 @@ AdjacencyList_log:
 
 	mov	$newline, %rdi
 	call	log
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	AdjacencyList_bfs
+# @description	Performs a breadth-first search of an AdjacencyList starting at the specified
+#		vertex
+# @param	%rdi	Pointer to an AdjacencyList
+# @param	%rsi	The start vertex
+# @return	%rax	An ArrayStack tracing the path followed
+.equ	THIS, -8
+.equ	STRT, -16
+.equ	SEEN, -24
+.equ	Q, -32
+.equ	EDGS, -40
+.equ	LIM, -48
+.equ	IDX, -56
+.equ	VAL, -64
+.equ	OUT, -72
+.type	AdjacencyList_bfs, @function
+AdjacencyList_bfs:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	xor	%rax, %rax
+	cmp	AdjacencyList.size(%rdi), %rsi
+	jge	5f
+
+	sub	$72, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, STRT(%rbp)
+
+	mov	AdjacencyList.size(%rdi), %rdi
+	call	alloc
+	mov	%rax, SEEN(%rbp)
+
+	# Zero out the array using STOSB
+	mov	THIS(%rbp), %rdi
+	mov	AdjacencyList.size(%rdi), %rcx	# Number of repetitions for REP
+	mov	%rax, %rdi			# STOSB destination
+	mov	$FALSE, %rax			# Value to insert
+	rep	stosb
+
+	call	SLList_ctor
+	mov	%rax, Q(%rbp)
+
+	mov	%rax, %rdi
+	mov	STRT(%rbp), %rsi
+	call	SLList_add
+
+	mov	SEEN(%rbp), %rcx
+	movb	$TRUE, (%rcx, %rax)
+
+	# Create output ArrayStack
+	call	ArrayStack_ctor
+	mov	%rax, OUT(%rbp)
+
+	mov	Q(%rbp), %rdi
+	jmp	4f
+
+1:
+	# Pop next item off of the queue
+	call	SLList_remove
+	mov	%rax, VAL(%rbp)
+
+	mov	OUT(%rbp), %rdi
+	call	ArrayStack_length
+	mov	%rax, %rsi
+	mov	VAL(%rbp), %rdx
+	call	ArrayStack_add
+
+
+	# Loop the out edges and add the ones we haven't seen yet to the queue
+	mov	THIS(%rbp), %rdi
+	mov	%rax, %rsi
+	call	AdjacencyList_out_edges
+	mov	%rax, EDGS(%rbp)
+	mov	4(%rax), %ecx			# ArrayStack.len = Number of vertices to loop
+	mov	%rcx, LIM(%rbp)
+	movq	$-1, IDX(%rbp)			# Setting this to -1 saves us an extra label/jump
+	jmp	3f
+
+2:
+	# Get the current vertex
+	mov	EDGS(%rbp), %rdi
+	call	ArrayStack_get
+
+	# Check if the vertex has already been seen
+	mov	SEEN(%rbp), %rcx
+	cmpb	$0, (%rcx, %rax)
+	jne	3f
+
+	# Vertex has not been seen yet so add it to Q and SEEN
+	mov	Q(%rbp), %rdi
+	mov	%rax, %rsi
+	call	SLList_add
+
+	mov	SEEN(%rbp), %rcx
+	movb	$TRUE, (%rcx, %rax)
+
+3:
+	incq	IDX(%rbp)
+	mov	IDX(%rbp), %rsi
+	cmp	LIM(%rbp), %rsi
+	jl	2b
+
+4:
+	mov	Q(%rbp), %rdi
+	cmpq	$0, (%rdi)			# Iterate until the length of Q is zero
+	jg	1b
+
+	mov	THIS(%rbp), %rdi
+	mov	OUT(%rbp), %rax
+
+5:
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# Colors for depth-first search
+.equ	WHITE, 0
+.equ	GRAY, 1
+.equ	BLACK, 2
+
+# @function	AdjacencyList_rdfs
+# @description	Performs a RECURSIVE depth-first search starting at the specified index
+# @param	%rdi	Pointer to an AdjacencyList
+# @param	%rsi	Start vertex
+# @return	%rax	An ArrayStack with the path followed
+.equ	THIS, -8
+.equ	STRT, -16
+.equ	CLRS, -24
+.equ	OUTP, -32
+.type	AdjacencyList_rdfs, @function
+AdjacencyList_rdfs:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	cmp	AdjacencyList.size(%rdi), %rsi
+	jge	5f
+
+	sub	$32, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, STRT(%rbp)
+
+	mov	AdjacencyList.size(%rdi), %rdi
+	call	alloc
+	mov	%rax, CLRS(%rbp)
+
+	# Set the entire colors array to white to indicate no vertexes have been visited yet
+	mov	THIS(%rbp), %rdi
+	mov	AdjacencyList.size(%rdi), %rcx
+	mov	%rax, %rdi
+	mov	$WHITE, %rax
+	rep	stosb
+
+	# Initialize the output array
+	call	ArrayStack_ctor
+	mov	%rax, OUTP(%rbp)
+
+	# Call the private recursive helper
+	mov	THIS(%rbp), %rdi
+	mov	STRT(%rbp), %rsi
+	mov	CLRS(%rbp), %rdx
+	mov	OUTP(%rbp), %rcx
+	call	rdfs
+
+5:
+	mov	OUTP(%rbp), %rax
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	AdjacencyList_dfs
+# @description	Performs a NON-RECURSIVE depth-first search starting at the specified index
+# @param	%rdi	Pointer to an AdjacencyList
+# @param	%rsi	Start vertex
+# @return	%rax	An ArrayStack with the path followed
+.equ	THIS, -8
+.equ	STRT, -16
+.equ	CLRS, -24
+.equ	SLLQ, -32
+.equ	EDGS, -40
+.equ	CNTR, -48
+.equ	OUTP, -56
+.type	AdjacencyList_dfs, @function
+AdjacencyList_dfs:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	cmp	AdjacencyList.size(%rdi), %rsi
+	jge	5f
+
+	sub	$56, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, STRT(%rbp)
+
+	mov	AdjacencyList.size(%rdi), %rdi
+	call	alloc
+	mov	%rax, CLRS(%rbp)
+
+	# Set the entire colors array to white to indicate no vertexes have been visited yet
+	mov	THIS(%rbp), %rdi
+	mov	AdjacencyList.size(%rdi), %rcx
+	mov	%rax, %rdi
+	mov	$WHITE, %rax
+	rep	stosb
+
+	# Initialize the queue to track visits
+	call	SLList_ctor
+	mov	%rax, SLLQ(%rbp)
+
+	# Initialize the output array
+	call	ArrayStack_ctor
+	mov	%rax, OUTP(%rbp)
+
+	mov	SLLQ(%rbp), %rdi
+	mov	STRT(%rbp), %rsi
+	call	SLList_push
+	jmp	4f
+
+1:
+	call	SLList_pop
+	mov	%rax, %rdx
+
+	mov	OUTP(%rbp), %rdi
+	call	ArrayStack_length
+	mov	%rax, %rsi
+	call	ArrayStack_add
+
+	mov	CLRS(%rbp), %rcx
+	cmpb	$WHITE, (%rcx, %rax)
+	jne	2f
+
+	movb	$GRAY, (%rcx, %rax)
+
+	mov	THIS(%rbp), %rdi
+	mov	%rax, %rsi
+	call	AdjacencyList_out_edges
+	mov	%rax, EDGS(%rbp)
+	movq	$0, CNTR(%rbp)
+	jmp	3f
+
+2:
+	mov	CNTR(%rbp), %rsi
+	call	ArrayStack_get
+
+	mov	SLLQ(%rbp), %rdi
+	mov	%rax, %rsi
+	call	SLList_push
+	incq	CNTR(%rbp)
+
+3:
+	mov	EDGS(%rbp), %rdi
+	call	ArrayStack_length
+	cmp	%rax, CNTR(%rbp)
+	jl	2b
+
+4:
+	mov	SLLQ(%rbp), %rdi
+	cmpq	$0, (%rdi)			# Checks if SLList.size > 0
+	jg	1b
+
+	mov	OUTP(%rbp), %rax
+
+5:
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	rdfs
+# @description	File private helper to implement a recursive depth-first search
+# @param	%rdi	Pointer to an AdajacencyList
+# @param	%rsi	The start vertex
+# @param	%rdx	A colors array
+# @param	%rcx	An output array to add all the vertexes to
+# @return	void
+.equ	THIS, -8
+.equ	STRT, -16
+.equ	CLRS, -24
+.equ	OUTP, -32
+.equ	EDGS, -40
+.equ	CNTR, -48
+rdfs:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$48, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, STRT(%rbp)
+	mov	%rdx, CLRS(%rbp)
+	mov	%rcx, OUTP(%rbp)
+
+	# Color the current vertex gray to indicate that we are visiting it now ...
+	movb	$GRAY, (%rdx, %rsi)
+
+	mov	OUTP(%rbp), %rdi
+	call	ArrayStack_length
+	mov	%rsi, %rdx
+	mov	%rax, %rsi
+	call	ArrayStack_add
+
+	mov	THIS(%rbp), %rdi
+	mov	STRT(%rbp), %rsi
+	call	AdjacencyList_out_edges
+	mov	%rax, EDGS(%rbp)
+	movq	$0, CNTR(%rbp)
+	jmp	2f
+
+1:
+	mov	CNTR(%rbp), %rsi
+	call	ArrayStack_get
+
+	# Only recurse if the edge IS white
+	mov	CLRS(%rbp), %rdx
+	cmpb	$WHITE, (%rdx, %rax)
+	jne	2f
+
+	# TODO IS THIS NECESSARY?? It is set to gray in the function call ...
+	movb	$GRAY, (%rdx, %rax)
+	mov	THIS(%rbp), %rdi
+	mov	%rax, %rsi
+	mov	OUTP(%rbp), %rcx
+	call	rdfs
+
+	incq	CNTR(%rbp)
+
+2:
+	mov	EDGS(%rbp), %rdi
+	call	ArrayStack_length
+	cmp	%rax, CNTR(%rbp)
+	jl	1b
+
+	# Restore params and color the vertex black to indicate that we are done
+	mov	THIS(%rbp), %rdi
+	mov	STRT(%rbp), %rsi
+	mov	CLRS(%rbp), %rdx
+	mov	OUTP(%rbp), %rcx
+	movb	$BLACK, (%rdx, %rsi)
 
 	mov	%rbp, %rsp
 	pop	%rbp

@@ -22,6 +22,12 @@ in:
 	.ascii	"in\0"
 out:
 	.ascii	"out\0"
+bfs:
+	.ascii	"bfs\0"
+rdfs:
+	.ascii	"rdfs\0"
+dfs:
+	.ascii	"dfs\0"
 sdelim:
 	.ascii	"[ \0"
 mdelim:
@@ -36,6 +42,9 @@ commands:
 	.quad	has
 	.quad	in
 	.quad	out
+	.quad	bfs
+	.quad	rdfs
+	.quad	dfs
 	.quad	0	# Sentinel
 
 handlers:
@@ -44,6 +53,9 @@ handlers:
 	.quad	AdjacencyList_has_edge
 	.quad	AdjacencyList_in_edges
 	.quad	AdjacencyList_out_edges
+	.quad	AdjacencyList_bfs
+	.quad	AdjacencyList_rdfs
+	.quad	AdjacencyList_dfs
 
 newline:
 	.ascii	"\n\0"
