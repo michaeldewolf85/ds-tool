@@ -22,6 +22,12 @@ in:
 	.ascii	"in\0"
 out:
 	.ascii	"out\0"
+bfs:
+	.ascii	"bfs\0"
+rdfs:
+	.ascii	"rdfs\0"
+dfs:
+	.ascii	"dfs\0"
 sdelim:
 	.ascii	"[ \0"
 mdelim:
@@ -36,6 +42,9 @@ commands:
 	.quad	has
 	.quad	in
 	.quad	out
+	.quad	bfs
+	.quad	rdfs
+	.quad	dfs
 	.quad	0	# Sentinel
 
 handlers:
@@ -44,6 +53,9 @@ handlers:
 	.quad	AdjacencyMatrix_has_edge
 	.quad	AdjacencyMatrix_in_edges
 	.quad	AdjacencyMatrix_out_edges
+	.quad	AdjacencyMatrix_bfs
+	.quad	AdjacencyMatrix_rdfs
+	.quad	AdjacencyMatrix_dfs
 
 newline:
 	.ascii	"\n\0"
@@ -73,12 +85,13 @@ this:
 .equ	ARG2, -32
 .equ	ARR, -40
 .equ	LEN, -48
+.equ	IDX, -56
 .type	adjacencymatrix_handler, @function
 adjacencymatrix_handler:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$48, %rsp
+	sub	$56, %rsp
 	mov	%rdi, INPUT(%rbp)
 	movq	$0, COUNTER(%rbp)
 
@@ -147,12 +160,15 @@ skip:
 	jmp	6f
 
 3:
+	cmpq	$4, COUNTER(%rbp)
+	jg	arraystk
+
 	# Return value was NOT a simple TRUE/FALSE and we need to iterate over the result
 	mov	(%rax), %rcx	# Length of array
 	mov	%rcx, LEN(%rbp)
 	lea	8(%rax), %rcx	# Values of array
 	mov	%rcx, ARR(%rbp)
-	movq	$0, COUNTER(%rbp)
+	movq	$0, IDX(%rbp)
 	mov	$sdelim, %rdi
 	call	log
 	jmp	5f
@@ -164,8 +180,8 @@ skip:
 	mov	%rax, %rdi
 	call	log
 
-	incq	COUNTER(%rbp)
-	mov	COUNTER(%rbp), %rcx
+	incq	IDX(%rbp)
+	mov	IDX(%rbp), %rcx
 	cmp	LEN(%rbp), %rcx
 	jge	5f
 
@@ -173,12 +189,18 @@ skip:
 	call	log
 
 5:
-	mov	COUNTER(%rbp), %rcx
+	mov	IDX(%rbp), %rcx
 	cmp	LEN(%rbp), %rcx
 	jl	4b
 
 	mov	$edelim, %rdi
 	call	log
+	jmp	6f
+
+arraystk:
+	# Return value was NOT a simple TRUE/FALSE and was an ArrayStack
+	mov	%rax, %rdi
+	call	ArrayStack_slog
 
 6:
 	mov	$newline, %rdi
