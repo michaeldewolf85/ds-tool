@@ -29,6 +29,7 @@ evaluate_commands:
 	.quad	binarysearchtree
 	.quad	treap
 	.quad	scapegoattree
+	.quad	redblacktree
 	.quad	binaryheap
 	.quad	meldableheap
 	.quad	sort
@@ -57,6 +58,7 @@ handlers:
 	.quad	binarysearchtree_handler
 	.quad	treap_handler
 	.quad	scapegoattree_handler
+	.quad	redblacktree_handler
 	.quad	binaryheap_handler
 	.quad	meldableheap_handler
 	.quad	sort_handler
