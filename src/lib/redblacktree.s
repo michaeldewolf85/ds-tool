@@ -158,13 +158,15 @@ RedBlackTree_find:
 # @param	%rsi	The item to add
 # @return	%rax	The item on success, NULL on failure (e.g. node already in the tree)
 .equ	THIS, -8
+.equ	DATA, -16
 .type	RedBlackTree_add, @function
 RedBlackTree_add:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$8, %rsp
+	sub	$16, %rsp
 	mov	%rdi, THIS(%rbp)
+	mov	%rsi, DATA(%rbp)
 
 	call	add_node
 	test	%rax, %rax
@@ -175,7 +177,7 @@ RedBlackTree_add:
 	mov	%rax, %rsi
 	call	add_fixup
 
-	mov	RedBlackTreeNode.data(%rax), %rax
+	mov	DATA(%rbp), %rax
 1:
 	mov	%rbp, %rsp
 	pop	%rbp
@@ -465,6 +467,7 @@ traverse:
 
 	mov	FUNC(%rbp), %rsi
 	mov	DPTH(%rbp), %rdx
+	mov	POSC(%rbp), %rcx
 	mov	RedBlackTreeNode.left(%rdi), %rdi
 	call	traverse
 
@@ -479,6 +482,7 @@ traverse:
 	mov	THIS(%rbp), %rdi
 	mov	FUNC(%rbp), %rsi
 	mov	DPTH(%rbp), %rdx
+	mov	POSC(%rbp), %rcx
 	mov	RedBlackTreeNode.right(%rdi), %rdi
 	call	traverse
 
@@ -1090,6 +1094,7 @@ remove_fixup_case2:
 	call	pull_black
 
 	mov	THIS(%rbp), %rdi
+	mov	PRNT(%rbp), %rsi
 	call	flip_left
 
 	mov	RedBlackTreeNode.right(%rsi), %rax
@@ -1174,7 +1179,8 @@ remove_fixup_case3:
 
 2:
 	mov	LEFT_OLD(%rbp), %rsi
-	cmpq	$RED, RedBlackTreeNode.color(%rsi)
+	mov	RedBlackTreeNode.left(%rsi), %rax
+	cmpq	$RED, RedBlackTreeNode.color(%rax)
 	jne	3f
 
 	mov	%rsi, %rdi
@@ -1187,6 +1193,7 @@ remove_fixup_case3:
 	mov	PRNT(%rbp), %rax
 
 4:
+	mov	THIS(%rbp), %rdi
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
