@@ -36,6 +36,7 @@ evaluate_commands:
 	.quad	adjacencymatrix
 	.quad	adjacencylist
 	.quad	binarytrie
+	.quad	xfasttrie
 	.quad	0	# Sentinel
 
 handlers:
@@ -65,6 +66,7 @@ handlers:
 	.quad	adjacencymatrix_handler
 	.quad	adjacencylist_handler
 	.quad	binarytrie_handler
+	.quad	xfasttrie_handler
 	.quad	error_handler
 
 .section .text

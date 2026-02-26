@@ -605,7 +605,7 @@ BinaryTrie_log:
 
 # @function	log_node
 # @description	File private helper callback to log a node during traverse
-# @param	%rdi	Pointer to the RedBlackTreeNode to log
+# @param	%rdi	Pointer to the BinaryTrieTreeNode to log
 # @param	%rsi	The depth of the node
 # @param	%rdx	The max depth
 # @return	void
