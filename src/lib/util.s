@@ -3,7 +3,7 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	atoi, hash_code, itoa, strcmp
+.globl	atoi, hash_code, itoa, itoab, random, strcmp
 
 .section .rodata
 
@@ -87,6 +87,62 @@ itoa:
 	inc	%rdx
 	cmp	%rcx, %rdx
 	jl	2b
+
+	mov	$int_buffer, %rax 
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @function	itoab
+# @description	Converts an integer to an ascii string (binary representation)
+# @param	%rdi	The integer to convert
+# @param	%rsi	Min digits (will be zeroes if needed)
+# @return	%rax	The address of the string
+.equ	INT, -8
+.type	itoab, @function
+itoab:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$8, %rsp
+	mov	%rdi, INT(%rbp)	# Preserve the int so it doesn't get clobbered
+
+	xor	%rcx, %rcx	# Count the number of digits
+
+	push	$NULL		# Adds null termination to string
+	inc	%rcx
+
+1:
+	mov	$1, %rax
+	and	%rdi, %rax
+	add	$'0', %al
+	push	%rax
+
+	shr	%rdi
+	inc	%rcx
+
+	test	%rdi, %rdi
+	jnz	1b
+	
+	jmp	3f
+2:
+	push	$'0'
+	inc	%rcx
+
+3:
+	cmp	%rsi, %rcx
+	jle	2b
+
+	xor	%rdx, %rdx
+	mov	$int_buffer, %r8
+
+4:
+	pop	%rax
+	mov	%al, int_buffer(, %rdx)
+	inc	%rdx
+	cmp	%rcx, %rdx
+	jl	4b
 
 	mov	$int_buffer, %rax 
 
@@ -180,4 +236,14 @@ hash_code:
 	divq	p
 
 	mov	%edx, %eax
+	ret
+
+# @function	random
+# @description	Generate random bits
+# @return	%rax	A random 64-bit integer
+.type	random, @function
+random:
+	rdrand	%rax
+	jnc	random
+
 	ret
