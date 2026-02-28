@@ -3,6 +3,7 @@
 .include	"common.inc"
 
 .globl	XFastTrie_add, XFastTrie_ctor, XFastTrie_find, XFastTrie_log, XFastTrie_remove
+.globl	XFastTrie_find_node
 
 # XFastTrie
 	.struct	0
@@ -191,8 +192,20 @@ XFastTrie_ctor:
 # @function	XFastTrie_find
 # @description	Find an item in an XFastTrie
 # @param	%rdi	Pointer to an XFastTrie
+# @param	%rsi	The search key to find
+# @return	%rax	The search key on success or NULL on failure
+.type	XFastTrie_find, @function
+XFastTrie_find:
+	call	XFastTrie_find_node
+	test	%rax, %rax
+	cmovnz	XFastTrieNode.key(%rax), %rax
+	ret
+
+# @function	XFastTrie_find_node
+# @description	Find a node in an XFastTrie
+# @param	%rdi	Pointer to an XFastTrie
 # @param	%rsi	The item to find
-# @return	%rax	The item on success or NULL on failure
+# @return	%rax	The XFastTrieNode on success or NULL on failure
 .equ	THIS, -8
 .equ	ITEM, -16
 .equ	NODE, -24
@@ -200,8 +213,8 @@ XFastTrie_ctor:
 .equ	HGH, -40
 .equ	LVL, -48
 .equ	KEY, -56
-.type	XFastTrie_find, @function
-XFastTrie_find:
+.type	XFastTrie_find_node, @function
+XFastTrie_find_node:
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -279,10 +292,6 @@ XFastTrie_find:
 	mov	XFastTrieNode.rght(%rax), %rax
 
 4:
-	test	%rax, %rax
-	cmovnz	XFastTrieNode.val(%rax), %rdx
-	cmovnz	XFastTrieNode.key(%rax), %rax
-
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -309,6 +318,7 @@ XFastTrie_add:
 	sub	$64, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, ITEM(%rbp)
+	mov	%rcx, PAYL(%rbp)
 	
 	mov	XFastTrie.root(%rdi), %rax
 	xor	%rdx, %rdx
