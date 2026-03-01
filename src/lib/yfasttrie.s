@@ -324,9 +324,7 @@ YFastTrie_log:
 	mov	YFastTrie.xft(%rdi), %rdi
 	call	XFastTrie_log
 
-	mov	$0, %rsi
-	call	XFastTrie_find_node
-	mov	XFastTrieNode.left(%rax), %rcx
+	mov	8(%rdi), %rcx
 	mov	%rcx, LIST(%rbp)
 
 	mov	$treaps_label, %rdi
