@@ -2,7 +2,7 @@
 
 .include	"common.inc"
 
-.globl	YFastTrie_ctor, YFastTrie_add
+.globl	YFastTrie_ctor, YFastTrie_add, YFastTrie_find, YFastTrie_remove, YFastTrie_log
 
 .equ	NIL, 0
 .equ	FALSE, 0
@@ -12,7 +12,27 @@
 	.struct	0
 YFastTrie.xft:
 	.struct	YFastTrie.xft + 1<<3
+YFastTrie.hgt:
+	.struct	YFastTrie.hgt + 1<<2
+YFastTrie.siz:
+	.struct	YFastTrie.siz + 1<<2
 .equ	YFASTTRIE_SIZE, .
+
+# XFastTrieNode
+	.struct	0
+XFastTrieNode.key:
+	.struct	XFastTrieNode.key + 1<<3
+XFastTrieNode.val:
+	.struct	XFastTrieNode.val + 1<<3
+XFastTrieNode.prnt:
+	.struct	XFastTrieNode.prnt + 1<<3
+XFastTrieNode.left:
+	.struct	XFastTrieNode.left + 1<<3
+XFastTrieNode.rght:
+	.struct	XFastTrieNode.rght + 1<<3
+XFastTrieNode.jump:
+	.struct	XFastTrieNode.jump + 1<<3
+.equ	XFASTTRIENODE_SIZE, .
 
 # YTreap
 	.struct	0
@@ -36,6 +56,10 @@ YTreapNode.rgt:
 
 .section .rodata
 
+treaps_label:
+	.ascii	"Treaps => {\n\0"
+treaps_end:
+	.ascii	"}\n\0"
 ytreap_start:
 	.ascii	"{\n\0"
 ytreap_end:
@@ -50,12 +74,18 @@ horz:
 	.ascii	"---\0"
 delim:
 	.ascii	"|*\0"
-indent:
-	.byte	SPACE, SPACE, SPACE, NULL
 newline:
 	.byte	LF, NULL
 nil:
 	.ascii	"NIL\0"
+treaps_kstart:
+	.ascii	"[\0"
+treaps_kend:
+	.ascii	"] => \0"
+indent1:
+	.byte	SPACE, SPACE, NULL
+indent2:
+	.byte	SPACE, SPACE, SPACE, SPACE, NULL
 
 .section .text
 
@@ -64,16 +94,70 @@ nil:
 # @description	Constructor for a YFastTrie
 # @param	%rdi	Height of the tree
 # @return	%rax	Pointer to a new YFastTrie
+.equ	HGT, -8
+.equ	XFT, -16
 .type	YFastTrie_ctor, @function
 YFastTrie_ctor:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, HGT(%rbp)
+
 	call	XFastTrie_ctor
-	push	%rax
+	mov	%rax, XFT(%rbp)
+
+	call	YTreap_ctor
+
+	# Add 2^w - 1 with a Treap
+	mov	XFT(%rbp), %rdi
+	mov	HGT(%rbp), %rcx
+	mov	$1, %rsi
+	shl	%cl, %rsi
+	dec	%rsi
+	mov	%rax, %rcx
+	call	XFastTrie_add
 
 	mov	$YFASTTRIE_SIZE, %rdi
 	call	alloc
 
-	pop	%rcx
+	mov	XFT(%rbp), %rcx
 	mov	%rcx, YFastTrie.xft(%rax)
+	mov	HGT(%rbp), %rcx
+	mov	%ecx, YFastTrie.hgt(%rax)
+	movl	$0, YFastTrie.siz(%rax)
+
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @public
+# @function	YFastTrie_find
+# @description	Searches for an element in a YFastTrie
+# @param	%rdi	YFastTrie
+# @param	%rsi	Search key
+# @return	%rax	The smallest element in the set that is greater than or equal to the search
+.equ	THIS, -8
+.equ	SKEY, -16
+.type	YFastTrie_find, @function
+YFastTrie_find:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$16, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, SKEY(%rbp)
+
+	mov	YFastTrie.xft(%rdi), %rdi
+	call	XFastTrie_find_node
+
+	mov	XFastTrieNode.val(%rax), %rdi
+	mov	SKEY(%rbp), %rsi
+	call	YTreap_find
+
+	mov	THIS(%rbp), %rdi
+	mov	%rbp, %rsp
+	pop	%rbp
 	ret
 
 # @public
@@ -82,18 +166,192 @@ YFastTrie_ctor:
 # @param	%rdi	YFastTrie
 # @param	%rsi	Key to add
 # @return	%rax	TRUE on success, FALSE on failure
-.equ	THIS, -8
-.equ	DATA, -16
+.equ	THS, -8
+.equ	KEY, -16
+.equ	TRP, -24
 .type	YFastTrie_add, @function
 YFastTrie_add:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$16, %rsp
-	mov	%rdi, THIS(%rbp)
-	mov	%rsi, DATA(%rbp)
+	sub	$24, %rsp
+	mov	%rdi, THS(%rbp)
+	mov	%rsi, KEY(%rbp)
 
 	mov	YFastTrie.xft(%rdi), %rdi
+	call	XFastTrie_find_node
+	mov	XFastTrieNode.val(%rax), %rdi
+	mov	%rdi, TRP(%rbp)
+
+	mov	KEY(%rbp), %rsi
+	call	YTreap_add
+	test	%rax, %rax
+	jz	2f
+
+	mov	THS(%rbp), %rdi
+	incl	YFastTrie.siz(%rdi)
+
+	mov	YFastTrie.hgt(%rdi), %ecx
+	dec	%rcx
+	call	random
+	and	%rcx, %rax
+	jnz	1f
+
+	mov	TRP(%rbp), %rdi
+	mov	KEY(%rbp), %rsi
+	call	YTreap_split
+
+	mov	THIS(%rbp), %rdi
+	mov	YFastTrie.xft(%rdi), %rdi
+	mov	KEY(%rbp), %rsi
+	mov	%rax, %rcx
+	call	XFastTrie_add
+
+1:
+	mov	$TRUE, %rax
+
+2:
+	mov	THIS(%rbp), %rdi
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @public
+# @function	YFastTrie_remove
+# @description	Remove a key from a YFastTrie
+# @param	%rdi	YFastTrie
+# @param	%rsi	Search key to remove
+# @return	%rax	TRUE on success, FALSE on failure
+.equ	THIS, -8
+.equ	SKEY, -16
+.equ	RVAL, -24
+.equ	NODE, -32
+.equ	TREP, -40
+.equ	RETV, -48
+.type	YFastTrie_remove, @function
+YFastTrie_remove:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$48, %rsp
+	mov	%rdi, THIS(%rbp)
+	mov	%rsi, SKEY(%rbp)
+
+	# Calculate the reserved value of 2^w - 1 which ALWAYS stays in xft
+	mov	YFastTrie.hgt(%rdi), %ecx
+	mov	$1, %rax
+	shl	%cl, %rax
+	dec	%rax
+	mov	%rax, RVAL(%rbp)
+
+	mov	YFastTrie.xft(%rdi), %rdi
+	call	XFastTrie_find_node
+	mov	%rax, NODE(%rbp)
+
+	mov	XFastTrieNode.val(%rax), %rdi
+	mov	%rdi, TREP(%rbp)
+	mov	SKEY(%rbp), %rsi
+	call	YTreap_remove
+	mov	%rax, RETV(%rbp)
+
+	test	%rax, %rax
+	jz	1f
+
+	mov	THIS(%rbp), %rdi
+	decl	YFastTrie.siz(%rdi)
+
+1:
+	# We don't EVER want to absorb the treap at 2^w - 1
+	mov	SKEY(%rbp), %rax
+	cmp	RVAL(%rbp), %rax
+	je	2f
+
+	# We don't want to absorb the treap if it isn't in xft
+	mov	NODE(%rbp), %rax
+	mov	XFastTrieNode.key(%rax), %rcx
+	cmp	SKEY(%rbp), %rcx
+	jne	2f
+
+	# Obtain the "next" YTreap via the list and absorb the current into it
+	mov	XFastTrieNode.rght(%rax), %rax
+	mov	XFastTrieNode.val(%rax), %rdi
+	mov	TREP(%rbp), %rsi
+	call	YTreap_absorb
+
+	mov	THIS(%rbp), %rdi
+	mov	YFastTrie.xft(%rdi), %rdi
+	mov	SKEY(%rbp), %rsi
+	call	XFastTrie_remove
+
+2:
+	mov	THIS(%rbp), %rdi
+	mov	SKEY(%rbp), %rsi
+	mov	RETV(%rbp), %rax
+	mov	%rbp, %rsp
+	pop	%rbp
+	ret
+
+# @public
+# @function	YFastTrie_log
+# @description	Logs the Innards of a YFastTrie
+# @param	%rdi	YFastTrie
+# @return	void
+.equ	THIS, -8
+.equ	LIST, -16
+.equ	CURR, -24
+.type	YFastTrie_log, @function
+YFastTrie_log:
+	push	%rbp
+	mov	%rsp, %rbp
+
+	sub	$24, %rsp
+	mov	%rdi, THIS(%rbp)
+
+	mov	YFastTrie.xft(%rdi), %rdi
+	call	XFastTrie_log
+
+	mov	$0, %rsi
+	call	XFastTrie_find_node
+	mov	XFastTrieNode.left(%rax), %rcx
+	mov	%rcx, LIST(%rbp)
+
+	mov	$treaps_label, %rdi
+	call	log
+
+	mov	LIST(%rbp), %rdi
+	jmp	2f
+
+1:
+	mov	%rdi, CURR(%rbp)
+	mov	$indent1,%rdi
+	call	log
+
+	mov	$treaps_kstart, %rdi
+	call	log
+
+	mov	CURR(%rbp), %rdi
+	mov	XFastTrieNode.key(%rdi), %rdi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$treaps_kend, %rdi
+	call	log
+
+	mov	CURR(%rbp), %rdi
+	mov	XFastTrieNode.val(%rdi), %rdi
+	call	YTreap_log
+	mov	CURR(%rbp), %rdi
+
+2:
+	mov	XFastTrieNode.rght(%rdi), %rdi
+	cmp	LIST(%rbp), %rdi
+	jne	1b
+
+	mov	$treaps_end, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -117,11 +375,12 @@ YTreap_ctor:
 # @return	%rax	The key
 YTreap_find:
 	call	_YTreap_find_last
+	mov	$-1, %rcx
 	test	%rax, %rax
+	cmovz	%rcx, %rax
 	jz	1f
 
 	# We want to return NIL if the found value is LESS THAN the search key
-	xor	%rcx, %rcx
 	cmp	YTreapNode.key(%rax), %esi
 	cmovle	YTreapNode.key(%rax), %eax
 	cmovg	%rcx, %rax
@@ -214,8 +473,8 @@ YTreap_remove:
 
 # @public
 # @function	YTreap_split
-# @description	Removes all nodes from the YTreap that have keys GREATER THAN specified and return
-#		a new YTreap which contains all the removed nodes
+# @description	Removes all nodes from the YTreap that have keys GREATER THAN or EQUAL TO the 
+#		specified and return a new YTreap which contains all the removed nodes
 # @param	%rdi	YTreap
 # @param	%rsi	Search key
 # @return	%rax	YTreap
@@ -270,7 +529,7 @@ YTreap_split:
 	mov	ROOT(%rbp), %rdi
 
 	# Set root on OLD YTreap
-	mov	YTreapNode.lft(%rdi), %rdx
+	mov	YTreapNode.rgt(%rdi), %rdx
 	test	%rdx, %rdx
 	jz	4f
 
@@ -280,7 +539,7 @@ YTreap_split:
 	mov	%rdx, YTreap.rt(%rcx)
 
 	# Set root on NEW YTreap
-	mov	YTreapNode.rgt(%rdi), %rdx
+	mov	YTreapNode.lft(%rdi), %rdx
 	test	%rdx, %rdx
 	jz	5f
 
@@ -374,6 +633,9 @@ YTreap_log:
 	xor	%rcx, %rcx
 	call	_YTreap_traverse
 
+	mov	$indent1, %rdi
+	call	log
+
 	mov	$ytreap_end, %rdi
 	call	log
 
@@ -397,7 +659,7 @@ YTreapNode_log:
 	mov	%rdi, NODE(%rbp)
 	mov	%rsi, DPTH(%rbp)
 	
-	mov	$indent, %rdi
+	mov	$indent2, %rdi
 	call	log
 
 	cmpq	$0, DPTH(%rbp)

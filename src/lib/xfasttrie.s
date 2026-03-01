@@ -3,6 +3,7 @@
 .include	"common.inc"
 
 .globl	XFastTrie_add, XFastTrie_ctor, XFastTrie_find, XFastTrie_log, XFastTrie_remove
+.globl	XFastTrie_find_node
 
 # XFastTrie
 	.struct	0
@@ -20,8 +21,10 @@ XFastTrie.hght:
 
 # XFastTrieNode
 	.struct	0
-XFastTrieNode.data:
-	.struct	XFastTrieNode.data + 1<<3
+XFastTrieNode.key:
+	.struct	XFastTrieNode.key + 1<<3
+XFastTrieNode.val:
+	.struct	XFastTrieNode.val + 1<<3
 XFastTrieNode.prnt:
 	.struct	XFastTrieNode.prnt + 1<<3
 XFastTrieNode.left:
@@ -189,8 +192,20 @@ XFastTrie_ctor:
 # @function	XFastTrie_find
 # @description	Find an item in an XFastTrie
 # @param	%rdi	Pointer to an XFastTrie
+# @param	%rsi	The search key to find
+# @return	%rax	The search key on success or NULL on failure
+.type	XFastTrie_find, @function
+XFastTrie_find:
+	call	XFastTrie_find_node
+	test	%rax, %rax
+	cmovnz	XFastTrieNode.key(%rax), %rax
+	ret
+
+# @function	XFastTrie_find_node
+# @description	Find a node in an XFastTrie
+# @param	%rdi	Pointer to an XFastTrie
 # @param	%rsi	The item to find
-# @return	%rax	The item on success or NULL on failure
+# @return	%rax	The XFastTrieNode on success or NULL on failure
 .equ	THIS, -8
 .equ	ITEM, -16
 .equ	NODE, -24
@@ -198,8 +213,8 @@ XFastTrie_ctor:
 .equ	HGH, -40
 .equ	LVL, -48
 .equ	KEY, -56
-.type	XFastTrie_find, @function
-XFastTrie_find:
+.type	XFastTrie_find_node, @function
+XFastTrie_find_node:
 	push	%rbp
 	mov	%rsp, %rbp
 
@@ -277,9 +292,6 @@ XFastTrie_find:
 	mov	XFastTrieNode.rght(%rax), %rax
 
 4:
-	test	%rax, %rax
-	cmovnz	XFastTrieNode.data(%rax), %rax
-
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
@@ -288,6 +300,7 @@ XFastTrie_find:
 # @description	Add an item to an XFastTrie
 # @param	%rdi	Pointer to an XFastTrie to add to
 # @param	%rsi	The item to add
+# @param	%rcx	The payload
 # @return	%rax	TRUE on success, NIL on failure
 .equ	THIS, -8
 .equ	ITEM, -16
@@ -296,14 +309,16 @@ XFastTrie_find:
 .equ	SIDE, -40
 .equ	PRED, -48
 .equ	HKEY, -56
+.equ	PAYL, -64
 .type	XFastTrie_add, @function
 XFastTrie_add:
 	push	%rbp
 	mov	%rsp, %rbp
 
-	sub	$56, %rsp
+	sub	$64, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, ITEM(%rbp)
+	mov	%rcx, PAYL(%rbp)
 	
 	mov	XFastTrie.root(%rdi), %rax
 	xor	%rdx, %rdx
@@ -396,7 +411,9 @@ XFastTrie_add:
 	mov	THIS(%rbp), %rdi
 	mov	ITEM(%rbp), %rsi
 	mov	NODE(%rbp), %rax
-	mov	%rsi, XFastTrieNode.data(%rax)
+	mov	PAYL(%rbp), %rcx
+	mov	%rsi, XFastTrieNode.key(%rax)
+	mov	%rcx, XFastTrieNode.val(%rax)
 
 	mov	PRED(%rbp), %rcx
 	mov	%rcx, XFastTrieNode.left(%rax)		# u.prev <= pred
@@ -414,7 +431,7 @@ XFastTrie_add:
 	test	%rcx, %rcx
 	jz	8f
 
-	cmp	%rsi, XFastTrieNode.data(%rcx)
+	cmp	%rsi, XFastTrieNode.key(%rcx)
 	jg	8f
 
 7:
@@ -425,7 +442,7 @@ XFastTrie_add:
 	test	%rcx, %rcx
 	jz	8f
 
-	cmp	%rsi, XFastTrieNode.data(%rcx)
+	cmp	%rsi, XFastTrieNode.key(%rcx)
 	jl	8f
 
 8:
@@ -646,7 +663,7 @@ XFastTrie_log:
 	jmp	2f
 
 1:
-	mov	XFastTrieNode.data(%rax), %rdi
+	mov	XFastTrieNode.key(%rax), %rdi
 	call	itoa
 	mov	%rax, %rdi
 	call	log
@@ -826,7 +843,7 @@ log_node:
 	jmp	4f
 
 3:
-	mov	XFastTrieNode.data(%rax), %rdi
+	mov	XFastTrieNode.key(%rax), %rdi
 	push	%rdi
 	mov	XFastTrieNode.prnt(%rax), %rax
 
@@ -877,7 +894,7 @@ log_node:
 	jmp	11f
 
 10:
-	mov	XFastTrieNode.data(%rdi), %rdi
+	mov	XFastTrieNode.key(%rdi), %rdi
 	call	itoa
 	mov	%rax, %rdi
 	call	log
@@ -957,7 +974,7 @@ XFastTrieNode_ctor:
 	call	alloc
 
 	pop	%rdi
-	movq	%rdi, XFastTrieNode.data(%rax)
+	movq	%rdi, XFastTrieNode.key(%rax)
 	movq	$NULL, XFastTrieNode.prnt(%rax)
 	movq	$NULL, XFastTrieNode.left(%rax)
 	movq	$NULL, XFastTrieNode.rght(%rax)
