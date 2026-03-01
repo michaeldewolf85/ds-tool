@@ -301,13 +301,14 @@ DualArrayDeque_add:
 .equ	THIS, -8
 .equ	INDEX, -16
 .equ	FRONT_LENGTH, -24
+.equ	RVAL, -32
 .type	DualArrayDeque_remove, @function
 DualArrayDeque_remove:
 	push	%rbp
 	mov	%rsp, %rbp
 
 	# Store variables
-	sub	$24, %rsp
+	sub	$32, %rsp
 	mov	%rdi, THIS(%rbp)
 	mov	%rsi, INDEX(%rbp)
 	mov	DualArrayDeque.front(%rdi), %rdi
@@ -344,6 +345,7 @@ DualArrayDeque_remove:
 2:
 	# Return value in %rax
 	call	ArrayStack_remove
+	mov	%rax, RVAL(%rbp)
 
 	# Restore %rdi pointer
 	mov	THIS(%rbp), %rdi
@@ -351,6 +353,7 @@ DualArrayDeque_remove:
 	# Balance the "front" and "back
 	call	balance
 
+	mov	RVAL(%rbp), %rax
 	mov	%rbp, %rsp
 	pop	%rbp
 	ret
