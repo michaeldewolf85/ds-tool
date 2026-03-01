@@ -56,6 +56,8 @@ YTreapNode.rgt:
 
 .section .rodata
 
+size_label:
+	.ascii	"Length => \0"
 treaps_label:
 	.ascii	"Treaps => {\n\0"
 treaps_end:
@@ -307,6 +309,18 @@ YFastTrie_log:
 	sub	$24, %rsp
 	mov	%rdi, THIS(%rbp)
 
+	mov	$size_label, %rdi
+	call	log
+	mov	THIS(%rbp), %rdi
+	mov	YFastTrie.siz(%rdi), %edi
+	call	itoa
+	mov	%rax, %rdi
+	call	log
+
+	mov	$newline, %rdi
+	call	log
+
+	mov	THIS(%rbp), %rdi
 	mov	YFastTrie.xft(%rdi), %rdi
 	call	XFastTrie_log
 
