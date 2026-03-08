@@ -3,7 +3,7 @@
 .include	"common.inc"
 .include	"linux.inc"
 
-.globl	atoi, hash_code, itoa, itoab, random, strcmp
+.globl	atoi, hash_code, itoa, itoab, random, strcmp, strlen
 
 .section .rodata
 
@@ -246,4 +246,25 @@ random:
 	rdrand	%rax
 	jnc	random
 
+	ret
+
+# @function	strlen
+# @description	Get the length of a NULL-terminated string
+# @param	%rdi	Pointer to a NULL-terminated string
+# @return	%rax	The length of the string
+.type	strlen, @function
+strlen:
+	push	%rcx
+	push	%rdi
+
+	# SCASB
+	xor	%al, %al	# Comparison byte (0)
+	mov	$-1, %ecx	# Max iterations (largest possible 32 bit number)
+	repnz	scasb
+	mov	%rdi, %rax	# Stage return value
+
+	pop	%rdi		# Restore %rdi
+	sub	%rdi, %rax	# SCASB pointer (incremented) - original pointer = length
+
+	pop	%rcx
 	ret
