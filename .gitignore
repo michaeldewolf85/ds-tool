@@ -2,5 +2,8 @@
 bin
 build
 
+# Runtime artifacts
+*.dat
+
 # Vim
 *.swp
