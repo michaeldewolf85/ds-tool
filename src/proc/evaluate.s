@@ -38,6 +38,7 @@ evaluate_commands:
 	.quad	binarytrie
 	.quad	xfasttrie
 	.quad	yfasttrie
+	.quad	btree
 	.quad	0	# Sentinel
 
 handlers:
@@ -69,6 +70,7 @@ handlers:
 	.quad	binarytrie_handler
 	.quad	xfasttrie_handler
 	.quad	yfasttrie_handler
+	.quad	btree_handler
 	.quad	error_handler
 
 .section .text

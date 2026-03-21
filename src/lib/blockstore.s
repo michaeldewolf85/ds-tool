@@ -89,7 +89,7 @@ BlockStore_ctor:
 	syscall
 
 	mov	THIS(%rbp), %rdi
-	mov	%rax, BlockStore.fd(%rdi)
+	mov	%eax, BlockStore.fd(%rdi)
 	mov	%rdi, %rsi
 	mov	$BLOCKSTORE_SIZE, %rdx
 	xor	%rcx, %rcx
