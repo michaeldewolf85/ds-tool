@@ -108,7 +108,7 @@ match:
 	jne	2f
 
 	lea	RESB(%rbp), %rdi
-	test	%rdi, %rdi
+	test	%rax, %rax
 	jnz	1f
 
 	mov	$false, %rdi
